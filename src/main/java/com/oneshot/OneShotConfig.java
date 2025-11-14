@@ -1,9 +1,6 @@
 package com.oneshot;
 
-import net.runelite.client.config.Config;
-import net.runelite.client.config.ConfigGroup;
-import net.runelite.client.config.ConfigItem;
-import net.runelite.client.config.ConfigSection;
+import net.runelite.client.config.*;
 
 
 @ConfigGroup(OneShotConfig.GROUP)
@@ -117,14 +114,57 @@ public interface OneShotConfig extends Config
     }
 
     @ConfigItem(
+            keyName = "hcimscoutRedText",
+            name = "Draw Text",
+            description = "Draw Red text above HCIM Players",
+            section = SECTION_SCOUT,
+            position = 3
+    )
+    default boolean hcimscoutRedHelm(){
+        return false;
+    }
+
+    @ConfigItem(
             keyName = "hcimscoutWilderness",
             name = "Disable in Wilderness",
             description = "Enable to prevent entity hider from working in wilderness",
             section = SECTION_SCOUT,
-            position = 3
+            position = 4
     )
     default boolean hcimscoutWilderness(){
         return true;
+    }
+
+    @ConfigItem(
+            keyName = "hcimscoutCooldown",
+            name = "Lookup cooldown",
+            description = "Ticks between each lookup cooldown, to avoid spamming API",
+            section = SECTION_SCOUT,
+            position = 4
+    )
+    @Range(
+            min = 1,
+            max = 20
+    )
+    default int lookupCooldown()
+    {
+        return 2;
+    }
+
+    @ConfigItem(
+            keyName = "cacheDuration",
+            name = "Lookup cache duration",
+            description = "Duration in minutes to cache player status",
+            section = SECTION_SCOUT,
+            position = 5
+    )
+    @Range(
+            min = 10,
+            max = 360
+    )
+    default int cacheDuration()
+    {
+        return 360;
     }
 
 

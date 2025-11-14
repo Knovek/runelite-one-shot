@@ -2,13 +2,12 @@ package com.oneshot;
 
 import com.google.common.base.MoreObjects;
 import com.google.inject.Inject;
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Cursor;
-import java.awt.Font;
-import java.awt.GridLayout;
+
+import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
+import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 import javax.inject.Named;
 import javax.swing.Box;
@@ -19,7 +18,11 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.event.HyperlinkEvent;
 
 import com.oneshot.utils.Constants;
+import com.oneshot.utils.Icons;
 import net.runelite.api.Client;
+import net.runelite.api.GameState;
+import net.runelite.api.events.ClanChannelChanged;
+import net.runelite.api.events.GameStateChanged;
 import net.runelite.client.RuneLiteProperties;
 import net.runelite.client.account.SessionManager;
 import net.runelite.client.eventbus.EventBus;
@@ -30,19 +33,10 @@ import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.LinkBrowser;
+import net.runelite.api.events.ClanChannelChanged;
 
 public class OneShotPanel extends PluginPanel
 {
-    private static final String RUNELITE_LOGIN = "https://runelite_login/";
-
-//    private static final ImageIcon ARROW_RIGHT_ICON;
-//    private static final ImageIcon GITHUB_ICON;
-//    private static final ImageIcon DISCORD_ICON;
-//    private static final ImageIcon PATREON_ICON;
-//    private static final ImageIcon WIKI_ICON;
-
-    private final JLabel loggedLabel = new JLabel();
-    private final JRichTextPane emailLabel = new JRichTextPane();
     private JPanel actionsContainer;
 
     @Inject
@@ -51,40 +45,7 @@ public class OneShotPanel extends PluginPanel
     @Inject
     private EventBus eventBus;
 
-    @Inject
-    private SessionManager sessionManager;
-
-    @Inject
-    private ScheduledExecutorService executor;
-
-    @Inject
-    @Named("runelite.version")
-    private String runeliteVersion;
-
-    @Inject
-    @Named("runelite.github.link")
-    private String githubLink;
-
-    @Inject
-    @Named("runelite.discord.invite")
-    private String discordInvite;
-
-    @Inject
-    @Named("runelite.patreon.link")
-    private String patreonLink;
-
-    @Inject
-    @Named("runelite.wiki.link")
-    private String wikiLink;
-
-//    static
-//    {
-//        ARROW_RIGHT_ICON = new ImageIcon(Icons.GEM);
-//        GITHUB_ICON = new ImageIcon(Icons.GEM);
-//        DISCORD_ICON = new ImageIcon(Icons.COOK);
-//        PATREON_ICON = new ImageIcon(Icons.MINING);
-//        WIKI_ICON = new ImageIcon(Icons.SMITHING);
-//    }
+    private JPanel userPanel = new JPanel();
 
     void init()
     {
@@ -92,6 +53,7 @@ public class OneShotPanel extends PluginPanel
         setBackground(ColorScheme.DARK_GRAY_COLOR);
         setBorder(new EmptyBorder(10, 10, 10, 10));
 
+        // Version Panel
         JPanel versionPanel = new JPanel();
         versionPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         versionPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
@@ -101,55 +63,18 @@ public class OneShotPanel extends PluginPanel
 
         JLabel version = new JLabel(htmlLabel("Plugin version: ", Constants.version));
         version.setFont(smallFont);
-
-//        JLabel revision = new JLabel();
-//        revision.setFont(smallFont);
-//
-//        String engineVer = engineVer = String.format("Rev %d", client.getRevision());
-//
-//        revision.setText(htmlLabel("Oldschool revision: ", engineVer));
-
-//        JLabel launcher = new JLabel(htmlLabel("Launcher version: ", MoreObjects
-//                .firstNonNull(RuneLiteProperties.getLauncherVersion(), "Unknown")));
-//        launcher.setFont(smallFont);
-
-//        loggedLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-//        loggedLabel.setFont(smallFont);
-//
-//        emailLabel.setForeground(Color.WHITE);
-//        emailLabel.setFont(smallFont);
-//        emailLabel.enableAutoLinkHandler(false);
-//        emailLabel.addHyperlinkListener(e ->
-//        {
-//            if (HyperlinkEvent.EventType.ACTIVATED.equals(e.getEventType()) && e.getURL() != null)
-//            {
-//                if (e.getURL().toString().equals(RUNELITE_LOGIN))
-//                {
-//                    executor.execute(sessionManager::login);
-//                }
-//            }
-//        });
-
         versionPanel.add(version);
-//        versionPanel.add(revision);
-//        versionPanel.add(launcher);
-//        versionPanel.add(Box.createGlue());
-//        versionPanel.add(loggedLabel);
-//        versionPanel.add(emailLabel);
 
-        actionsContainer = new JPanel();
-        actionsContainer.setBorder(new EmptyBorder(10, 0, 0, 0));
-        actionsContainer.setLayout(new GridLayout(0, 1, 0, 10));
+        // User Panel
+        userPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        userPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        userPanel.setLayout(new GridLayout(0, 1));
 
-//        actionsContainer.add(buildLinkPanel(GITHUB_ICON, "Report an issue or", "make a suggestion", githubLink));
-//        actionsContainer.add(buildLinkPanel(DISCORD_ICON, "Talk to us on our", "Discord server", discordInvite));
-//        actionsContainer.add(buildLinkPanel(PATREON_ICON, "Become a patron to", "help support RuneLite", patreonLink));
-//        actionsContainer.add(buildLinkPanel(WIKI_ICON, "Information about", "RuneLite and plugins", wikiLink));
+        cleanPanel();
 
         add(versionPanel, BorderLayout.NORTH);
-        add(actionsContainer, BorderLayout.CENTER);
+        add(userPanel, BorderLayout.CENTER);
 
-        updateLoggedIn();
         eventBus.register(this);
     }
 
@@ -158,122 +83,70 @@ public class OneShotPanel extends PluginPanel
         eventBus.unregister(this);
     }
 
-    /**
-     * Builds a link panel with a given icon, text and url to redirect to.
-     */
-    private static JPanel buildLinkPanel(ImageIcon icon, String topText, String bottomText, String url)
-    {
-        return buildLinkPanel(icon, topText, bottomText, () -> LinkBrowser.browse(url));
-    }
 
-    /**
-     * Builds a link panel with a given icon, text and callable to call.
-     */
-    private static JPanel buildLinkPanel(ImageIcon icon, String topText, String bottomText, Runnable callback)
+    private static JPanel buildRank(BufferedImage image, String name)
     {
         JPanel container = new JPanel();
         container.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        container.setLayout(new BorderLayout());
-        container.setBorder(new EmptyBorder(10, 10, 10, 10));
+        container.setBorder(new EmptyBorder(1, 1, 1, 1));
 
-        final Color hoverColor = ColorScheme.DARKER_GRAY_HOVER_COLOR;
-        final Color pressedColor = ColorScheme.DARKER_GRAY_COLOR.brighter();
+        ImageIcon icon = new ImageIcon(image);
+        icon.setImage(icon.getImage().getScaledInstance(13,13, Image.SCALE_DEFAULT));
 
         JLabel iconLabel = new JLabel(icon);
-        container.add(iconLabel, BorderLayout.WEST);
+        JLabel nameLabel = new JLabel(name);
 
-        JPanel textContainer = new JPanel();
-        textContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        textContainer.setLayout(new GridLayout(2, 1));
-        textContainer.setBorder(new EmptyBorder(5, 10, 5, 10));
-
-        container.addMouseListener(new MouseAdapter()
-        {
-            @Override
-            public void mousePressed(MouseEvent mouseEvent)
-            {
-                container.setBackground(pressedColor);
-                textContainer.setBackground(pressedColor);
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e)
-            {
-                callback.run();
-                container.setBackground(hoverColor);
-                textContainer.setBackground(hoverColor);
-            }
-
-            @Override
-            public void mouseEntered(MouseEvent e)
-            {
-                container.setBackground(hoverColor);
-                textContainer.setBackground(hoverColor);
-                container.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e)
-            {
-                container.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-                textContainer.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-                container.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
-            }
-        });
-
-        JLabel topLine = new JLabel(topText);
-        topLine.setForeground(Color.WHITE);
-        topLine.setFont(FontManager.getRunescapeSmallFont());
-
-        JLabel bottomLine = new JLabel(bottomText);
-        bottomLine.setForeground(Color.WHITE);
-        bottomLine.setFont(FontManager.getRunescapeSmallFont());
-
-        textContainer.add(topLine);
-        textContainer.add(bottomLine);
-
-        container.add(textContainer, BorderLayout.CENTER);
-
-//        JLabel arrowLabel = new JLabel(ARROW_RIGHT_ICON);
-//        container.add(arrowLabel, BorderLayout.EAST);
+        container.add(iconLabel);
+        container.add(nameLabel);
 
         return container;
     }
 
-    private void updateLoggedIn()
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged gameStateChanged)
     {
-        final String name = sessionManager.getAccountSession() != null
-                ? sessionManager.getAccountSession().getUsername()
-                : null;
-
-        if (name != null)
-        {
-            emailLabel.setContentType("text/plain");
-            emailLabel.setText(name);
-            loggedLabel.setText("Signed in as");
-        }
-        else
-        {
-            emailLabel.setContentType("text/html");
-            emailLabel.setText("<a href=\"" + RUNELITE_LOGIN + "\">Sign in</a> to sync settings to the cloud.");
-            loggedLabel.setText("Not signed in");
+        if (gameStateChanged.getGameState() == GameState.LOGIN_SCREEN){
+            cleanPanel();
         }
     }
+
+    private void cleanPanel(){
+        userPanel.removeAll();
+        JLabel info = new JLabel(errorLabel("Please log in to validate your cc"));
+        userPanel.add(info);
+        revalidate();
+        repaint();
+    }
+
+    @Subscribe
+    public void onClanChannelChanged(ClanChannelChanged clanChannelChanged)
+    {
+        if (clanChannelChanged.getClanChannel() != null) {
+            var clanName = clanChannelChanged.getClanChannel().getName();
+            if (clanName.equals("One Shot") && !clanChannelChanged.isGuest()) {
+                var playerName = client.getLocalPlayer().getName();
+                var clanSettings = client.getClanSettings();
+                assert clanSettings != null;
+                var clanRank = Objects.requireNonNull(clanSettings.findMember(playerName)).getRank();
+                var clanTitle = Objects.requireNonNull(clanSettings.titleForRank(clanRank)).getName();
+                userPanel.removeAll();
+                userPanel.add(buildRank(Icons.HELM, playerName + " | " + clanTitle));
+                revalidate();
+                repaint();
+            }
+        }
+        else{
+            cleanPanel();
+        }
+    } // TODO: Logic to enable/disable PANEL + check if user is in guest?
 
     private static String htmlLabel(String key, String value)
     {
         return "<html><body style = 'color:#a5a5a5'>" + key + "<span style = 'color:white'>" + value + "</span></body></html>";
     }
 
-    @Subscribe
-    public void onSessionOpen(SessionOpen sessionOpen)
+    private static String errorLabel(String value)
     {
-        updateLoggedIn();
-    }
-
-    @Subscribe
-    public void onSessionClose(SessionClose e)
-    {
-        updateLoggedIn();
+        return "<html><body style = 'color:#ff0000'>" + value + "</body></html>";
     }
 }

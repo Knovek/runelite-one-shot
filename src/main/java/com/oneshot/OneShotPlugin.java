@@ -1,8 +1,10 @@
 package com.oneshot;
 
 
+import com.oneshot.modules.HCIMScoutOverlay;
 import com.oneshot.utils.Constants;
 import com.oneshot.utils.Icons;
+import com.oneshot.modules.HCIMScout;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -13,10 +15,10 @@ import javax.inject.Inject;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
-import net.runelite.api.Player;
+import net.runelite.api.events.GameStateChanged;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.gameval.VarbitID;
 import net.runelite.api.events.VarbitChanged;
-import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.ClanChannelChanged;
 
 import net.runelite.client.config.ConfigManager;
@@ -28,21 +30,33 @@ import java.util.Objects;
 
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.ClientToolbar;
+import net.runelite.client.ui.overlay.OverlayManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
+//@Slf4j
 @PluginDescriptor(
 	name = "One Shot"
 )
 
 public class OneShotPlugin extends Plugin
 {
+    private static final Logger log = LoggerFactory.getLogger(OneShotPlugin.class);
+
+    @Inject
+    private OverlayManager overlayManager;
+
+    @Inject
+    private HCIMScout hcimScout;
+
     @Inject
 	private Client client;
 
 	@Inject
 	private OneShotConfig config;
 
-    //private fetchRecords
+    @Inject
+    private HCIMScoutOverlay hcimScoutOverlay;
 
     @Inject
     private ClientToolbar clientToolbar;
@@ -50,10 +64,17 @@ public class OneShotPlugin extends Plugin
     private NavigationButton navButton;
     private OneShotPanel panel;
 
+    @Provides
+    OneShotConfig provideConfig(ConfigManager configManager)
+    {
+        return configManager.getConfig(OneShotConfig.class);
+    }
+
 	@Override
 	protected void startUp() throws Exception
 	{
         log.debug("Startup");
+        hcimScout.init();
         panel = injector.getInstance(OneShotPanel.class);
         panel.init();
 
@@ -65,32 +86,23 @@ public class OneShotPlugin extends Plugin
                 .build();
 
         clientToolbar.addNavigation(navButton);
-	} // TODO: INITIALIZE PANEL and BUILD PANEL
 
-
+        overlayManager.add(hcimScoutOverlay);
+	} // TODO: BUILD PANEL
 
 	@Override
 	protected void shutDown() throws Exception
 	{
         log.debug("Shutdown");
+        hcimScout.deinit();
         panel.deinit();
         clientToolbar.removeNavigation(navButton);
         panel = null;
         navButton = null;
+
+        hcimScout.clearCache();
+        overlayManager.remove(hcimScoutOverlay);
 	}
-
-    @Subscribe
-    public void onGameStateChanged(GameStateChanged gameStateChanged)
-    {
-
-        if (client.getGameState() == GameState.LOGGED_IN){
-            Player local = client.getLocalPlayer();
-            if (local != null) {
-                client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",local.getName(), null);
-                log.debug("gameState LOGGEDIN: " + local.getName());
-            }
-        } // TODO: save name to variable
-    }
 
     @Subscribe
     public void onClanChannelChanged(ClanChannelChanged clanChannelChanged)
@@ -103,25 +115,25 @@ public class OneShotPlugin extends Plugin
                 assert clanSettings != null;
                 var clanRank = Objects.requireNonNull(clanSettings.findMember(playerName)).getRank();
                 var clanTitle = Objects.requireNonNull(clanSettings.titleForRank(clanRank)).getName();
-                client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", clanName, null);
-                log.debug("onClanChannelChanged: " + clanName + " | " + clanTitle);
+                log.debug("onClanChannelChanged: " + clanName + " | " + clanRank + " | " + clanTitle);
             }
         }
-    } // TODO: Logic to enable/disable PANEL + check if user is in guest?
+    } // TODO: Logic to disable panel if user logs out
 
     @Subscribe
     public void onVarbitChanged(VarbitChanged varbitChanged)
     {
         if (varbitChanged.getVarbitId() == VarbitID.IRONMAN_HARDCORE_DEAD) {
-            client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "[ONESHOT] You Died!!", null);
+            client.addChatMessage(ChatMessageType.GAMEMESSAGE, "One Shot", "You Died!!", null);
             // TODO: Add screenshot to discord #deaths and verify that no false positives are sent
         }
     }
 
+    @Subscribe
+    public void onGameTick(final GameTick event)
+    {
+        hcimScout.gameTick();
+    }
 
-	@Provides
-    OneShotConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(OneShotConfig.class);
-	}
+
 }
