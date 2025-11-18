@@ -7,12 +7,9 @@ import com.google.common.annotations.VisibleForTesting;
 import net.runelite.api.Client;
 import net.runelite.api.IndexedObjectSet;
 import net.runelite.api.Player;
-import net.runelite.api.Point;
 import net.runelite.api.Renderable;
 
 import net.runelite.client.callback.Hooks;
-import net.runelite.client.callback.RenderCallbackManager;
-import net.runelite.client.config.ConfigManager;
 import net.runelite.client.hiscore.HiscoreSkill;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.hiscore.HiscoreClient;
@@ -29,9 +26,7 @@ import java.util.function.BiConsumer;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
-import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayManager;
-import net.runelite.client.ui.overlay.OverlayUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,16 +40,13 @@ public class HCIMScout extends Plugin {
     private HiscoreClient hiscoreClient;
 
     @Inject
-    private ConfigManager configManager;
-
-    @Inject
     private Hooks hooks;
 
     @Inject
-    private OverlayManager overlayManager;
+    private HCIMScoutOverlay hcimScoutOverlay;
 
-//    private HCIMScoutOverlay hcimScoutOverlay;
-//    private TestOverlay testOverlay;
+    @Inject
+    private OverlayManager overlayManager;
 
     private static final Logger log = LoggerFactory.getLogger(HCIMScout.class);
 
@@ -66,8 +58,8 @@ public class HCIMScout extends Plugin {
     private final ArrayList<String> hidePlayers = new ArrayList<String>(0);
     private final ArrayList<String> showPlayers = new ArrayList<String>(0);
 
-    private static final int ACTOR_OVERHEAD_TEXT_MARGIN = 25;
-    private static final int ACTOR_HORIZONTAL_TEXT_MARGIN = 10;
+    // TODO: add HCIM LIST to the panel with total level visible
+    // TODO: check if HCIM belongs to a clan chat (WOM Integration)
 
     private int lookupCounter;
 
@@ -81,15 +73,13 @@ public class HCIMScout extends Plugin {
     public void init()
     {
         hooks.registerRenderableDrawListener(drawListener);
-        //overlayManager.add(testOverlay);
-        //overlayManager.add(hcimScoutOverlay);
+        overlayManager.add(hcimScoutOverlay);
     }
 
     public void deinit()
     {
         hooks.unregisterRenderableDrawListener(drawListener);
-        //overlayManager.remove(testOverlay);
-        //overlayManager.remove(hcimScoutOverlay);
+        overlayManager.remove(hcimScoutOverlay);
     }
 
     private static class cachedLookup
@@ -131,7 +121,6 @@ public class HCIMScout extends Plugin {
                 {
                     addPlayerIgnore(playerName);
                 }
-                log.debug("Number of players in queue: {}", lookupQueue.size());
                 return results;
             }
 
@@ -157,7 +146,6 @@ public class HCIMScout extends Plugin {
         {
             log.warn("Failed to fetch {} hiscores", playerName);
         }
-        log.debug("Number of players in queue: {}", lookupQueue.size());
         return results;
     }
 
@@ -177,6 +165,7 @@ public class HCIMScout extends Plugin {
         }
 
         String playerName = lookupQueue.poll();
+        log.debug("Number of players in queue: {}", lookupQueue.size());
         Map<HiscoreEndpoint, Integer> data = lookupCache.get(playerName) != null ? lookupCache.get(playerName).map : null;
         // Update the cache with current time so we don't re-add players that we are currently fetching
         lookupCache.put(playerName, new cachedLookup(data, Instant.now()));
@@ -230,10 +219,7 @@ public class HCIMScout extends Plugin {
                 return true;
             }
 
-            if (isPlayerIgnored(player.getName()) && config.hcimscoutHide())
-            {
-                return false;
-            }
+            return !isPlayerIgnored(player.getName()) || !config.hcimscoutHide();
         }
         return true;
     }

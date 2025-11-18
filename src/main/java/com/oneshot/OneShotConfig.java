@@ -120,7 +120,7 @@ public interface OneShotConfig extends Config
             section = SECTION_SCOUT,
             position = 3
     )
-    default boolean hcimscoutRedHelm(){
+    default boolean hcimscoutRedText(){
         return false;
     }
 
@@ -136,36 +136,25 @@ public interface OneShotConfig extends Config
     }
 
     @ConfigItem(
-            keyName = "hcimscoutCooldown",
+            keyName = "lookupCooldown",
             name = "Lookup cooldown",
             description = "Ticks between each lookup cooldown, to avoid spamming API",
             section = SECTION_SCOUT,
             position = 4
     )
-    @Range(
-            min = 1,
-            max = 20
-    )
-    default int lookupCooldown()
-    {
-        return 2;
-    }
+    @Range(min = 1, max = 20)
+    default int lookupCooldown(){ return 2; }
 
     @ConfigItem(
             keyName = "cacheDuration",
             name = "Lookup cache duration",
             description = "Duration in minutes to cache player status",
             section = SECTION_SCOUT,
-            position = 5
+            position = 5,
+            hidden = true
     )
-    @Range(
-            min = 10,
-            max = 360
-    )
-    default int cacheDuration()
-    {
-        return 360;
-    }
+    @Range(min = 10, max = 360)
+    default int cacheDuration() { return 360; }
 
 
     @ConfigSection(

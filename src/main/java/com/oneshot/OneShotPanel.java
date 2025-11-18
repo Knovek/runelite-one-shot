@@ -1,152 +1,263 @@
 package com.oneshot;
 
-import com.google.common.base.MoreObjects;
-import com.google.inject.Inject;
+import com.oneshot.utils.Constants;
+import com.oneshot.utils.Icons;
 
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Objects;
-import java.util.concurrent.ScheduledExecutorService;
-import javax.inject.Named;
-import javax.swing.Box;
-import javax.swing.ImageIcon;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
+import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.event.HyperlinkEvent;
+import javax.swing.text.StyleContext;
 
-import com.oneshot.utils.Constants;
-import com.oneshot.utils.Icons;
-import net.runelite.api.Client;
-import net.runelite.api.GameState;
-import net.runelite.api.events.ClanChannelChanged;
-import net.runelite.api.events.GameStateChanged;
-import net.runelite.client.RuneLiteProperties;
-import net.runelite.client.account.SessionManager;
-import net.runelite.client.eventbus.EventBus;
-import net.runelite.client.eventbus.Subscribe;
-import net.runelite.client.events.SessionClose;
-import net.runelite.client.events.SessionOpen;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.LinkBrowser;
-import net.runelite.api.events.ClanChannelChanged;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class OneShotPanel extends PluginPanel
 {
-    private JPanel actionsContainer;
+    private static final Logger log = LoggerFactory.getLogger(OneShotPanel.class);
 
-    @Inject
-    private Client client;
+    JLabel intro_top_text = new JLabel("", SwingConstants.CENTER);
+    JLabel intro_bottom_text = new JLabel("", SwingConstants.CENTER);
 
-    @Inject
-    private EventBus eventBus;
+    JPanel panelMainContent = new JPanel();
 
-    private JPanel userPanel = new JPanel();
-
-    void init()
+    public void init()
     {
-        setLayout(new BorderLayout());
-        setBackground(ColorScheme.DARK_GRAY_COLOR);
-        setBorder(new EmptyBorder(10, 10, 10, 10));
-
-        // Version Panel
-        JPanel versionPanel = new JPanel();
-        versionPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        versionPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
-        versionPanel.setLayout(new GridLayout(0, 1));
-
-        final Font smallFont = FontManager.getRunescapeSmallFont();
-
-        JLabel version = new JLabel(htmlLabel("Plugin version: ", Constants.version));
-        version.setFont(smallFont);
-        versionPanel.add(version);
-
-        // User Panel
-        userPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        userPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
-        userPanel.setLayout(new GridLayout(0, 1));
-
-        cleanPanel();
-
-        add(versionPanel, BorderLayout.NORTH);
-        add(userPanel, BorderLayout.CENTER);
-
-        eventBus.register(this);
+        buildIntroPanel();
     }
 
-    void deinit()
+    public void deinit()
     {
-        eventBus.unregister(this);
+        // TODO
     }
 
-
-    private static JPanel buildRank(BufferedImage image, String name)
+    private void update()
     {
-        JPanel container = new JPanel();
-        container.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        container.setBorder(new EmptyBorder(1, 1, 1, 1));
-
-        ImageIcon icon = new ImageIcon(image);
-        icon.setImage(icon.getImage().getScaledInstance(13,13, Image.SCALE_DEFAULT));
-
-        JLabel iconLabel = new JLabel(icon);
-        JLabel nameLabel = new JLabel(name);
-
-        container.add(iconLabel);
-        container.add(nameLabel);
-
-        return container;
-    }
-
-    @Subscribe
-    public void onGameStateChanged(GameStateChanged gameStateChanged)
-    {
-        if (gameStateChanged.getGameState() == GameState.LOGIN_SCREEN){
-            cleanPanel();
-        }
-    }
-
-    private void cleanPanel(){
-        userPanel.removeAll();
-        JLabel info = new JLabel(errorLabel("Please log in to validate your cc"));
-        userPanel.add(info);
         revalidate();
         repaint();
     }
 
-    @Subscribe
-    public void onClanChannelChanged(ClanChannelChanged clanChannelChanged)
+    public void buildIntroPanel(){
+        removeAll();
+        ImageIcon icon = Icons.RED_HELM;
+        JLabel image = new JLabel(icon);
+
+        setBorder(new EmptyBorder(10, 10, 10, 10));
+
+        Font fontTitle;
+
+        try (
+                InputStream inRunescape = FontManager.class.getResourceAsStream("runescape.ttf");
+        ) {
+            Font font = Font.createFont(0, inRunescape).deriveFont(0, 16.0F);
+            fontTitle = StyleContext.getDefaultStyleContext().getFont(font.getName(), 0, 64);
+        } catch (FontFormatException ex) {
+            throw new RuntimeException("Font loaded, but format incorrect.", ex);
+        } catch (IOException ex) {
+            throw new RuntimeException("Font file not found.", ex);
+        }
+
+        JLabel title = new JLabel("One Shot", SwingConstants.CENTER);
+        title.setFont(fontTitle);
+
+        changeIntroText1("Welcome to One Shot Plugin", Color.WHITE);
+        changeIntroText2("Please enter the clan chat to continue", Color.WHITE);
+
+
+        add(title);
+        add(Box.createGlue());
+        add(image);
+        add(Box.createGlue());
+        add(Box.createGlue());
+        add(intro_top_text);
+        add(intro_bottom_text);
+
+        update();
+    }
+
+    public void changeIntroText1(String text, Color color){
+        intro_top_text.setText(text);
+        intro_top_text.setForeground(color);
+        update();
+    }
+
+    public void changeIntroText2(String text, Color color){
+        intro_bottom_text.setText(text);
+        intro_bottom_text.setForeground(color);
+        update();
+    }
+
+    public void buildMainPanel(boolean isModerator, String playerName, String clanRankName, ImageIcon iconRank)
     {
-        if (clanChannelChanged.getClanChannel() != null) {
-            var clanName = clanChannelChanged.getClanChannel().getName();
-            if (clanName.equals("One Shot") && !clanChannelChanged.isGuest()) {
-                var playerName = client.getLocalPlayer().getName();
-                var clanSettings = client.getClanSettings();
-                assert clanSettings != null;
-                var clanRank = Objects.requireNonNull(clanSettings.findMember(playerName)).getRank();
-                var clanTitle = Objects.requireNonNull(clanSettings.titleForRank(clanRank)).getName();
-                userPanel.removeAll();
-                userPanel.add(buildRank(Icons.HELM, playerName + " | " + clanTitle));
-                revalidate();
-                repaint();
+        removeAll();
+
+        JPanel playerRankPanel = buildPlayerPanel(playerName, clanRankName, iconRank);
+
+        // button panel
+        int nIcons = isModerator ? Constants.BUTTON_NUMBER : Constants.BUTTON_NUMBER - 1;
+
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new GridLayout(1, nIcons, 5, 5));
+
+        ImageIcon iconInfo = Icons.INFO;
+        ImageIcon iconDiscord = Icons.DISCORD;
+        ImageIcon iconEvents = Icons.EVENT;
+        ImageIcon iconScout = Icons.SCOUT;
+
+        JButton infoButton = buildButton(iconInfo, this::buildInfoPanel);
+        JButton discordButton = buildButton(iconDiscord, this::buildDiscordPanel, Constants.DISCORD_TIP);
+        JButton eventsButton = buildButton(iconEvents, this::buildEventsPanel);
+        JButton scoutButton = buildButton(iconScout, this::buildScoutPanel);
+
+        buttonPanel.add(infoButton);
+        buttonPanel.add(discordButton);
+        buttonPanel.add(eventsButton);
+        if (isModerator)
+        {
+            buttonPanel.add(scoutButton);
+        }
+
+        add(Box.createGlue());
+        add(playerRankPanel);
+
+        add(Box.createGlue());
+        add(buttonPanel);
+
+        // Main Panel
+        add(Box.createGlue());
+        add(panelMainContent);
+
+        // Version Panel
+        update();
+    }
+
+    private void buildInfoPanel()
+    {
+        panelMainContent.removeAll();
+        JLabel info = new JLabel("Work In Progress");
+        panelMainContent.add(info);
+
+        update();
+    }
+
+    private void buildDiscordPanel() {
+        LinkBrowser.browse(Constants.DISCORD_LINK);
+    }
+
+    private void buildEventsPanel()
+    {
+        panelMainContent.removeAll();
+        JLabel info = new JLabel("Work In Progress");
+        panelMainContent.add(info);
+        update();
+    }
+
+    private void buildScoutPanel()
+    {
+        panelMainContent.removeAll();
+        JLabel info = new JLabel("Work In Progress");
+        panelMainContent.add(info);
+
+        update();
+    }
+
+    private static JButton buildButton(ImageIcon icon, Runnable callback)
+    {
+        return buildButton(icon, callback, "");
+    }
+
+    private static JButton buildButton(ImageIcon icon, Runnable callback, String tip)
+    {
+        JButton button = new JButton(icon);
+
+        button.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        button.setBorderPainted(false);
+
+        if (!Objects.equals(tip, ""))
+        {
+            button.setToolTipText(tip);
+        }
+
+        final Color hoverColor = ColorScheme.DARKER_GRAY_HOVER_COLOR;
+        final Color pressedColor = ColorScheme.DARKER_GRAY_COLOR.brighter();
+
+        button.setPreferredSize(new Dimension(Constants.BUTTON_SIZE, Constants.BUTTON_SIZE));
+
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                button.setBackground(pressedColor);
             }
-        }
-        else{
-            cleanPanel();
-        }
-    } // TODO: Logic to enable/disable PANEL + check if user is in guest?
 
-    private static String htmlLabel(String key, String value)
-    {
-        return "<html><body style = 'color:#a5a5a5'>" + key + "<span style = 'color:white'>" + value + "</span></body></html>";
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                callback.run();
+                button.setBackground(hoverColor);
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                button.setBackground(hoverColor);
+                button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                button.setBackground(ColorScheme.DARK_GRAY_COLOR);
+                button.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
+            }
+        });
+
+        return button;
     }
 
-    private static String errorLabel(String value)
+    private static JPanel buildPlayerPanel(String playerName, String clanRankName, ImageIcon iconRank)
     {
-        return "<html><body style = 'color:#ff0000'>" + value + "</body></html>";
+
+        JPanel container  = new JPanel();
+        container.setLayout(new GridLayout(1, 2));
+
+        JPanel rankPanel = buildRankPanel(clanRankName, iconRank);
+
+        JLabel playerLabel = new JLabel(playerName);
+        JPanel playerPanel = new JPanel();
+        playerPanel.add(playerLabel, BorderLayout.CENTER);
+
+        container.add(playerPanel, BorderLayout.WEST);
+        container.add(rankPanel, BorderLayout.EAST);
+
+        return container;
     }
+
+    private static JPanel buildRankPanel(String clanRankName, ImageIcon iconRank)
+    {
+        JLabel clanRankLabel = new JLabel(clanRankName);
+        JLabel iconLabel = new JLabel(iconRank);
+        JPanel container = new JPanel();
+        //container.setLayout(new GridLayout(1, 2));
+
+        container.add(iconLabel, BorderLayout.CENTER);
+        container.add(clanRankLabel, BorderLayout.CENTER);
+
+        return container;
+    }
+
+    private static JLabel buildVersionPanel()
+    {
+        JLabel versionLabel = new JLabel();
+        String versionText = "<html><body style = 'color:#a5a5a5'>Plugin version: " + Constants.version + "</span></body></html>";
+        versionLabel.setText(versionText);
+        return versionLabel;
+    }
+
+
 }
+

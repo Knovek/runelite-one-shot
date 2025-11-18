@@ -11,10 +11,14 @@ import lombok.extern.slf4j.Slf4j;
 import com.google.inject.Provides;
 
 import javax.inject.Inject;
+import javax.swing.*;
 
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
+import net.runelite.api.clan.ClanRank;
+import net.runelite.api.clan.ClanSettings;
+import net.runelite.api.clan.ClanTitle;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.gameval.VarbitID;
@@ -23,9 +27,15 @@ import net.runelite.api.events.ClanChannelChanged;
 
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.game.ChatIconManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 import net.runelite.client.ui.NavigationButton;
@@ -36,7 +46,7 @@ import org.slf4j.LoggerFactory;
 
 //@Slf4j
 @PluginDescriptor(
-	name = "One Shot"
+	name = Constants.PLUGIN_NAME
 )
 
 public class OneShotPlugin extends Plugin
@@ -44,22 +54,19 @@ public class OneShotPlugin extends Plugin
     private static final Logger log = LoggerFactory.getLogger(OneShotPlugin.class);
 
     @Inject
-    private OverlayManager overlayManager;
-
-    @Inject
     private HCIMScout hcimScout;
 
     @Inject
 	private Client client;
 
-	@Inject
-	private OneShotConfig config;
-
     @Inject
-    private HCIMScoutOverlay hcimScoutOverlay;
+    private OneShotConfig config;
 
     @Inject
     private ClientToolbar clientToolbar;
+
+    @Inject
+    private ChatIconManager chatIconManager;
 
     private NavigationButton navButton;
     private OneShotPanel panel;
@@ -80,15 +87,14 @@ public class OneShotPlugin extends Plugin
 
         navButton = NavigationButton.builder()
                 .tooltip(Constants.PLUGIN_NAME)
-                .icon(Icons.HELM)
+                .icon(Icons.RED_HELM_IMAGE)
                 .priority(Constants.DEFAULT_PRIORITY)
                 .panel(panel)
                 .build();
 
         clientToolbar.addNavigation(navButton);
 
-        overlayManager.add(hcimScoutOverlay);
-	} // TODO: BUILD PANEL
+	}
 
 	@Override
 	protected void shutDown() throws Exception
@@ -101,24 +107,41 @@ public class OneShotPlugin extends Plugin
         navButton = null;
 
         hcimScout.clearCache();
-        overlayManager.remove(hcimScoutOverlay);
 	}
 
     @Subscribe
     public void onClanChannelChanged(ClanChannelChanged clanChannelChanged)
     {
         if (clanChannelChanged.getClanChannel() != null) {
-            var clanName = clanChannelChanged.getClanChannel().getName();
-            if (clanName.equals("One Shot") && !clanChannelChanged.isGuest()) {
-                var playerName = client.getLocalPlayer().getName();
-                var clanSettings = client.getClanSettings();
+            panel.buildIntroPanel();
+            String clanName = clanChannelChanged.getClanChannel().getName();
+            if (isOneShotMember(clanName) && !clanChannelChanged.isGuest()) { //clan member
+                String playerName = client.getLocalPlayer().getName();
+                ClanSettings clanSettings = client.getClanSettings();
                 assert clanSettings != null;
-                var clanRank = Objects.requireNonNull(clanSettings.findMember(playerName)).getRank();
-                var clanTitle = Objects.requireNonNull(clanSettings.titleForRank(clanRank)).getName();
+                ClanRank clanRank = Objects.requireNonNull(clanSettings.findMember(playerName)).getRank();
+                ClanTitle clanTitle = Objects.requireNonNull(clanSettings.titleForRank(clanRank));
                 log.debug("onClanChannelChanged: " + clanName + " | " + clanRank + " | " + clanTitle);
+                panel.buildMainPanel(
+                        isModerator(clanRank),
+                        playerName,
+                        clanTitle.getName(),
+                        getRankIcon(clanTitle)
+                );
+            } else if (isOneShotMember(clanName)) { // guest
+                panel.changeIntroText1("You are currently a guest of One Shot", Color.RED);
+                panel.changeIntroText2("Please apply to enter", Color.RED);
+            } else { //not in clan chat
+                panel.changeIntroText1("You are not part of One Shot CC", Color.RED);
+                panel.changeIntroText2("You don't have access", Color.RED);
             }
         }
-    } // TODO: Logic to disable panel if user logs out
+        else
+        {
+            panel.buildIntroPanel();
+        }
+    }
+
 
     @Subscribe
     public void onVarbitChanged(VarbitChanged varbitChanged)
@@ -135,5 +158,30 @@ public class OneShotPlugin extends Plugin
         hcimScout.gameTick();
     }
 
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged gameStateChanged)
+    {
+        if (gameStateChanged.getGameState() == GameState.LOGIN_SCREEN){
+            panel.buildIntroPanel();
+        }
+    }
+
+    private ImageIcon getRankIcon(ClanTitle clanTitle)
+    {
+        BufferedImage chatIcon = chatIconManager.getRankImage(clanTitle);
+        assert chatIcon != null;
+        return new ImageIcon(chatIcon.getScaledInstance(Constants.TEXT_ICON_SIZE, Constants.TEXT_ICON_SIZE, Image.SCALE_DEFAULT));
+    }
+
+    private static boolean isModerator(ClanRank clanRank)
+    {
+        return Arrays.asList(Constants.RANK_OWNER, Constants.RANK_DEPUTY_OWNER, Constants.RANK_ASTRAL,
+                Constants.RANK_CAPTAIN, Constants.RANK_LIEUTENANT).contains(clanRank);
+    }
+
+    private static boolean isOneShotMember(String clanName)
+    {
+        return Objects.equals(clanName, Constants.CLAN_NAME);
+    }
 
 }
