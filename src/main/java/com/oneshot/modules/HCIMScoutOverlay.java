@@ -3,18 +3,14 @@ package com.oneshot.modules;
 import com.oneshot.OneShotConfig;
 
 import com.oneshot.utils.Icons;
-import net.runelite.api.Client;
 import net.runelite.api.Player;
 import net.runelite.api.Point;
-import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayUtil;
 
 import javax.inject.Inject;
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.awt.image.BufferedImage;
 
 
 public class HCIMScoutOverlay extends Overlay {
@@ -23,10 +19,7 @@ public class HCIMScoutOverlay extends Overlay {
     private final OneShotConfig config;
 
     private static final int ACTOR_OVERHEAD_TEXT_MARGIN = 25;
-    private static final int ACTOR_HORIZONTAL_TEXT_MARGIN = 10;
 
-    @Inject
-    private Client client;
 
     @Inject
     HCIMScoutOverlay(OneShotConfig config, HCIMScout hcimScout)

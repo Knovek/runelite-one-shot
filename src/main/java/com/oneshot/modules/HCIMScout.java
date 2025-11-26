@@ -2,7 +2,7 @@ package com.oneshot.modules;
 
 import com.oneshot.OneShotConfig;
 
-import com.google.common.annotations.VisibleForTesting;
+//import com.google.common.annotations.VisibleForTesting;
 
 import net.runelite.api.Client;
 import net.runelite.api.IndexedObjectSet;
@@ -60,6 +60,7 @@ public class HCIMScout extends Plugin {
 
     // TODO: add HCIM LIST to the panel with total level visible
     // TODO: check if HCIM belongs to a clan chat (WOM Integration)
+    // TODO: prevent client player and clan members from being looked up in hiscores
 
     private int lookupCounter;
 
@@ -80,6 +81,7 @@ public class HCIMScout extends Plugin {
     {
         hooks.unregisterRenderableDrawListener(drawListener);
         overlayManager.remove(hcimScoutOverlay);
+        clearCache();
     }
 
     private static class cachedLookup
@@ -197,7 +199,7 @@ public class HCIMScout extends Plugin {
         }
     }
 
-    @VisibleForTesting
+//    @VisibleForTesting
     boolean shouldDrawPlayer(Renderable renderable, boolean drawingUI){
         if (renderable instanceof Player)
         {

@@ -12,17 +12,16 @@ public interface OneShotConfig extends Config
     @ConfigSection(
             name = "Discord Achievements",
             description = "Which achievements should be posted in One Shot discord?",
-            position = 1,
-            closedByDefault = true
+            position = 1
     )
-    String SECTION_ACHIEVEMENTS = "Game Achievements";
+    String DISCORD_SECTION = "Game Achievements";
 
     @ConfigItem(
             keyName = "uploadscreenshots",
             name = "Upload screenshots",
             description = "Should we include a screenshot of your achievements?",
-            section = SECTION_ACHIEVEMENTS,
-            position = 1
+            section = DISCORD_SECTION,
+            position = 2
     )
     default boolean uploadscreenshots(){
         return true;
@@ -32,8 +31,8 @@ public interface OneShotConfig extends Config
             keyName = "announce99",
             name = "Announce Level 99",
             description = "Should we announce when you reach Level 99 in a skill to discord #achievements?",
-            section = SECTION_ACHIEVEMENTS,
-            position = 2
+            section = DISCORD_SECTION,
+            position = 3
     )
     default boolean announce99(){
         return false;
@@ -43,8 +42,8 @@ public interface OneShotConfig extends Config
             keyName = "announcemaxed",
             name = "Announce Maxed",
             description = "Should we announce when you reach Level 99 in all skills to discord #achievements?",
-            section = SECTION_ACHIEVEMENTS,
-            position = 3
+            section = DISCORD_SECTION,
+            position = 4
     )
     default boolean announcemaxed(){
         return false;
@@ -54,8 +53,8 @@ public interface OneShotConfig extends Config
             keyName = "announcegmquests",
             name = "Announce Grandmaster Quests",
             description = "Should we announce when you complete Grandmaster quests to discord #achievements?",
-            section = SECTION_ACHIEVEMENTS,
-            position = 4
+            section = DISCORD_SECTION,
+            position = 5
     )
     default boolean announcegmquests(){
         return false;
@@ -65,8 +64,8 @@ public interface OneShotConfig extends Config
             keyName = "announceelites",
             name = "Announce Elite Diaries",
             description = "Should we announce when you complete Elite Diaries to discord #achievements?",
-            section = SECTION_ACHIEVEMENTS,
-            position = 5
+            section = DISCORD_SECTION,
+            position = 6
     )
     default boolean announceelites(){
         return false;
@@ -76,8 +75,8 @@ public interface OneShotConfig extends Config
             keyName = "announcedeaths",
             name = "Announce Deaths",
             description = "Should we announce when you die to discord #deaths?",
-            section = SECTION_ACHIEVEMENTS,
-            position = 6
+            section = DISCORD_SECTION,
+            position = 7
     )
     default boolean announcedeaths(){
         return true;
@@ -155,26 +154,6 @@ public interface OneShotConfig extends Config
     )
     @Range(min = 10, max = 360)
     default int cacheDuration() { return 360; }
-
-
-    @ConfigSection(
-            name = "Default World 507",
-            description = "Enable to default world to 507 when starting RuneLite",
-            position = 3,
-            closedByDefault = true
-    )
-    String SECTION_DEFAULTWORLD = "Default World 507";
-
-    @ConfigItem(
-            keyName = "world507",
-            name = "Default World 507",
-            description = "Enable to default world to 507 when starting RuneLite",
-            section = SECTION_DEFAULTWORLD,
-            position = 1
-    )
-    default boolean world507(){
-        return false;
-    }
 
 
 }
