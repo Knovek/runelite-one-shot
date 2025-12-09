@@ -3,10 +3,8 @@ package com.oneshot.modules;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.oneshot.OneShotPlugin;
-import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +37,7 @@ public class ItemSearcher {
      * @return the id associated with the item name, or null if not found
      */
     @Nullable
-    public Integer findItemId(@NotNull String name) {
+    public Integer findItemId(String name) {
         return itemIdByName.get(name);
     }
 
@@ -76,7 +74,7 @@ public class ItemSearcher {
      * @implNote When multiple non-noted item id's have the same in-game name, only the earliest id is saved
      */
 
-    void populate(@NotNull Map<Integer, String> namesById, @NotNull Set<Integer> notedIds) {
+    void populate(Map<Integer, String> namesById, Set<Integer> notedIds) {
         namesById.forEach((id, name) -> {
             if (!notedIds.contains(id))
                 itemIdByName.putIfAbsent(name, id);
@@ -105,25 +103,25 @@ public class ItemSearcher {
      * @param type     a type token that indicates how the json response should be parsed
      * @return the transformed cache response, wrapped in a future
      */
-    private <T> CompletableFuture<T> queryCache(@NotNull String fileName, @NotNull TypeToken<T> type) {
+    private <T> CompletableFuture<T> queryCache(String fileName, TypeToken<T> type) {
         return readJson(httpClient, gson, "https://static.runelite.net/cache/item/" + fileName, type);
     }
 
-    public <T> CompletableFuture<T> readJson(@NotNull OkHttpClient httpClient, @NotNull Gson gson, @NotNull String url, @NotNull TypeToken<T> type) {
+    public <T> CompletableFuture<T> readJson(OkHttpClient httpClient, Gson gson, String url, TypeToken<T> type) {
         return readUrl(httpClient, url, reader -> gson.fromJson(reader, type.getType()));
     }
 
-    public <T> CompletableFuture<T> readUrl(@NotNull OkHttpClient httpClient, @NotNull String url, @NotNull Function<Reader, T> transformer) {
+    public <T> CompletableFuture<T> readUrl( OkHttpClient httpClient, String url, Function<Reader, T> transformer) {
         CompletableFuture<T> future = new CompletableFuture<>();
         Request request = new Request.Builder().url(url).build();
         httpClient.newCall(request).enqueue(new Callback() {
             @Override
-            public void onFailure(@NotNull Call call, @NotNull IOException e) {
+            public void onFailure(Call call, IOException e) {
                 future.completeExceptionally(e);
             }
 
             @Override
-            public void onResponse(@NotNull Call call, @NotNull Response response) {
+            public void onResponse(Call call, Response response) {
                 assert response.body() != null;
                 try (Reader reader = response.body().charStream()) {
                     future.complete(transformer.apply(reader));
