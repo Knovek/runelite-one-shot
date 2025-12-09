@@ -145,16 +145,6 @@ public interface OneShotConfig extends Config
         return true;
     }
 
-    @ConfigItem(
-            keyName = "webhooks",
-            name = "Webhooks",
-            description = "You can get this info from discord",
-            section = DISCORD_SECTION_OPTIONS,
-            position = 4,
-            secret = true
-    )
-    default String webhooks() {return "";}
-
 
     @ConfigItem(
             keyName = "hcimscoutEnable",

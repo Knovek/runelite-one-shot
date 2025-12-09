@@ -36,15 +36,19 @@ import java.util.*;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import okhttp3.*;
+
+import java.util.Base64;
+
 @Singleton
 public class DiscordClient {
 
     private static final Logger log = LoggerFactory.getLogger(OneShotPlugin.class);
 
-    private String partypete;
-    private String towncrier;
-    private String death;
-    private String appreciator;
+    private final String partypete = "PARTYPETE";
+    private final String towncrier = "TOWNCRIER";
+    private final String death = "DEATHS";
+    private final String appreciator = "APPRECIATOR";
 
     private DrawManager drawManager;
     private ClientThread clientThread;
@@ -56,6 +60,10 @@ public class DiscordClient {
     private CompletableFuture<Image> pendingScreenshot;
     private boolean chatHiddenForScreenshot;
     private int screenshotDelayTicks;
+
+    private static final MediaType JSON_MEDIA = MediaType.get("application/json; charset=utf-8");
+    private static final String WORKER_URL = Constants.WORKER_URL;
+    private final OkHttpClient httpClient = new OkHttpClient();
 
 
     @Inject
@@ -92,7 +100,7 @@ public class DiscordClient {
         String title = String.format("Achieved %s Level %d", skill.getName(), level);
 
         // ---- Static values -----------------------------------------------------
-        String username = "Party Pete";
+        String username = null;
         String playerName = client.getLocalPlayer().getName();
 
         List<DiscordField> fields = List.of();
@@ -140,7 +148,6 @@ public class DiscordClient {
         String title = String.format("Achieved 200M XP in %s", skill.getName());
 
         // ---- Static values -----------------------------------------------------
-        String username = "Party Pete";
         String playerName = client.getLocalPlayer().getName();
 
         List<DiscordField> fields = List.of();
@@ -167,7 +174,7 @@ public class DiscordClient {
                         title,
                         Constants.DISCORD_LEVELS_COLOR,
                         playerName,
-                        username,
+                        null,
                         null,
                         description,
                         fields,
@@ -261,8 +268,9 @@ public class DiscordClient {
 
     }
 
-    public void sendAchievementDiary(String areaStr, String tierStr) throws IOException { //TODO: FILTER STUFF
+    public void sendAchievementDiary(String areaStr, String tierStr) throws IOException {
         if (towncrier == null) return;
+        if (!Objects.equals(tierStr, "Elite")) return;
         // Capture client-thread-safe data first
         String playerName = client.getLocalPlayer().getName();
 
@@ -299,7 +307,7 @@ public class DiscordClient {
                 sendDiscordEmbed(
                         towncrier,
                         title,
-                        Constants.DISCORD_COMBAT_ACHIEVEMENTS_COLOR,
+                        Constants.DISCORD_DIARIES_COLOR,
                         playerName,
                         username,
                         url,
@@ -518,13 +526,6 @@ public class DiscordClient {
             }
         });
 
-    }
-
-    public void refreshWebhooks(){
-        partypete = loadWebhook(0);
-        towncrier = loadWebhook(1);
-        death = loadWebhook(2);
-        appreciator = loadWebhook(3);
     }
 
     public void sendDeath(String actorInteraction, CompletableFuture<Image> screenshotFuture) throws IOException
@@ -852,7 +853,7 @@ public class DiscordClient {
     }
 
     private void sendDiscordEmbed(
-            String webhookUrl,
+            String webhookKey,
             String title,
             Color color,
             @Nullable String authorName,
@@ -862,53 +863,40 @@ public class DiscordClient {
             @Nullable List<DiscordField> fields,
             @Nullable byte[] screenshot,
             @Nullable byte[] userIcon,
-            @Nullable byte[] thumbnail
-    ) throws IOException //throws IOException
-    {
-
+            @Nullable byte[] thumbnailBytes
+    ) {
         byte[] footerIcon = bufferedImageToBytes(Icons.RED_HELM_IMAGE);
 
-        DiscordWebhook webhook = new DiscordWebhook(webhookUrl);
-        DiscordWebhook.EmbedObject embedObject = new DiscordWebhook.EmbedObject()
+        DiscordWebhook.EmbedObject embed = new DiscordWebhook.EmbedObject()
                 .setTitle(title)
                 .setColor(color)
                 .setFooter("One Shot Plugin", footerIcon, "footericon.png");
 
-        // webhook changes
-        if (username != null)
-            webhook.setUsername(username);
+        if (description != null) embed.setDescription(description);
+        if (url != null) embed.setUrl(url);
+        if (userIcon != null) embed.setAuthor(authorName, userIcon, "usericon.png");
+        if (thumbnailBytes != null) embed.setThumbnail(thumbnailBytes, "thumb.png");
+        if (screenshot != null) embed.setImage(screenshot, "screenshot.png");
 
-        // embed changes
-        if (description != null)
-            embedObject.setDescription(description);
-
-        if (userIcon != null)
-            embedObject.setAuthor(authorName, userIcon, "usericon.png");
-
-        if (thumbnail != null)
-            embedObject.setThumbnail(thumbnail, "thumb.png");
-
-        if (url != null)
-            embedObject.setUrl(url);
-
-        if (screenshot != null) {
-            embedObject.setImage(screenshot, "screenshot.png");
-        }
-
-        if (fields != null)
-        {
-            for (DiscordField field : fields)
-            {
-                embedObject.addField(field.getName(), field.getValue(), field.getInline());
+        if (fields != null) {
+            for (DiscordField f : fields) {
+                embed.addField(f.getName(), f.getValue(), f.getInline());
             }
         }
 
-        webhook.addEmbed(embedObject);
-        webhook.execute();
+        sendViaWorker(
+                webhookKey,
+                embed,
+                screenshot,
+                userIcon,
+                footerIcon,
+                thumbnailBytes
+        );
     }
 
+
     private void sendDiscordEmbed(
-            String webhookUrl,
+            String webhookKey,
             String title,
             Color color,
             @Nullable String authorName,
@@ -921,48 +909,121 @@ public class DiscordClient {
             @Nullable String thumbnailUrl
     ) throws IOException //throws IOException
     {
-
         byte[] footerIcon = bufferedImageToBytes(Icons.RED_HELM_IMAGE);
 
-        DiscordWebhook webhook = new DiscordWebhook(webhookUrl);
-        DiscordWebhook.EmbedObject embedObject = new DiscordWebhook.EmbedObject()
+        DiscordWebhook.EmbedObject embed = new DiscordWebhook.EmbedObject()
                 .setTitle(title)
                 .setColor(color)
                 .setFooter("One Shot Plugin", footerIcon, "footericon.png");
 
-        if (username != null) webhook.setUsername(username);
+        if (description != null) embed.setDescription(description);
+        if (url != null) embed.setUrl(url);
+        if (userIcon != null) embed.setAuthor(authorName, userIcon, "usericon.png");
+        if (url != null) embed.setUrl(url);
+        if (screenshot != null) embed.setImage(screenshot, "screenshot.png");
 
-        if (description != null)
-            embedObject.setDescription(description);
-
-        if (userIcon != null)
-            embedObject.setAuthor(authorName, userIcon, "usericon.png");
-
-        if (thumbnailUrl != null)
-            embedObject.setThumbnail(thumbnailUrl);
-
-        if (url != null)
-            embedObject.setUrl(url);
-
-        if (screenshot != null) {
-            embedObject.setImage(screenshot, "screenshot.png");
-        }
-
-        if (fields != null)
-        {
-            for (DiscordField field : fields)
-            {
-                embedObject.addField(field.getName(), field.getValue(), field.getInline());
+        if (fields != null) {
+            for (DiscordField f : fields) {
+                embed.addField(f.getName(), f.getValue(), f.getInline());
             }
         }
 
-        webhook.addEmbed(embedObject);
-        webhook.execute();
+        sendViaWorker(
+                webhookKey,
+                embed,
+                screenshot,
+                userIcon,
+                footerIcon,
+                null
+        );
     }
 
-    @Nullable
-    private String loadWebhook(int pos) {
-        if (Objects.equals(config.webhooks(), "")) return null;
-        return "https://discord.com/api/webhooks/" + config.webhooks().split(",")[pos];
+    private void sendViaWorker(
+            String webhookKey,
+            DiscordWebhook.EmbedObject embed,
+            @Nullable byte[] screenshot,
+            @Nullable byte[] userIcon,
+            @Nullable byte[] footerIcon,
+            @Nullable byte[] thumbnailBytes
+    ) {
+        try {
+            // 1. Build embed JSON (like your toJson() method)
+            DiscordWebhook.JSONObject embedJsonObj = embed.toJson(); // you added this earlier
+            String embedJson = embedJsonObj.toString();
+
+            String playerName = client.getLocalPlayer().getName();
+
+            StringBuilder attachmentsJson = new StringBuilder();
+            attachmentsJson.append("[");
+
+            boolean first = true;
+
+            if (screenshot != null) {
+                if (!first) attachmentsJson.append(",");
+                first = false;
+                attachmentsJson.append(buildAttachmentJson("screenshot.png", screenshot));
+            }
+            if (userIcon != null) {
+                if (!first) attachmentsJson.append(",");
+                first = false;
+                attachmentsJson.append(buildAttachmentJson("usericon.png", userIcon));
+            }
+            if (footerIcon != null) {
+                if (!first) attachmentsJson.append(",");
+                first = false;
+                attachmentsJson.append(buildAttachmentJson("footericon.png", footerIcon));
+            }
+            if (thumbnailBytes != null) {
+                if (!first) attachmentsJson.append(",");
+                first = false;
+                attachmentsJson.append(buildAttachmentJson("thumb.png", thumbnailBytes));
+            }
+
+            attachmentsJson.append("]");
+
+            String jsonBody =
+                    "{"
+                            + "\"username\":\"" + escape(playerName) + "\","
+                            + "\"clan_name\":\"One Shot\","
+                            + "\"webhook\":\"" + escape(webhookKey) + "\","
+                            + "\"content\":null,"
+                            + "\"embeds\":[" + embedJson + "],"
+                            + "\"attachments\":" + attachmentsJson
+                            + "}";
+
+            RequestBody body = RequestBody.create(JSON_MEDIA, jsonBody);
+
+            Request request = new Request.Builder()
+                    .url(WORKER_URL)
+                    .post(body)
+                    .build();
+
+            httpClient.newCall(request).enqueue(new Callback() {
+                @Override public void onFailure(Call call, IOException e) {
+                    log.error("Failed to send to Worker", e);
+                }
+
+                @Override public void onResponse(Call call, Response response) throws IOException {
+                    response.close();
+                }
+            });
+        } catch (Exception e) {
+            log.error("Error building Worker request", e);
+        }
     }
+
+    private String buildAttachmentJson(String filename, byte[] data) {
+        String b64 = Base64.getEncoder().encodeToString(data);
+        return "{"
+                + "\"filename\":\"" + escape(filename) + "\","
+                + "\"content_type\":\"image/png\","
+                + "\"data\":\"" + b64 + "\""
+                + "}";
+    }
+
+    private String escape(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
 }

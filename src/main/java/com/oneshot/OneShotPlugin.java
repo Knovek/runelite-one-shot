@@ -20,7 +20,6 @@ import net.runelite.api.widgets.Widget;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
-import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ChatIconManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -320,12 +319,6 @@ public class OneShotPlugin extends Plugin
             handleDiaryVarbit(id, value);
     }
 
-    @Subscribe
-    public void onConfigChanged(ConfigChanged e)
-    {
-        if (Objects.equals(e.getKey(), "webhooks")) discordClient.refreshWebhooks();
-    }
-
     private void handleHardcoreDeathVarbit(int id)
     {
         if (id != VarbitID.IRONMAN_HARDCORE_DEAD)
@@ -496,6 +489,12 @@ public class OneShotPlugin extends Plugin
     @Subscribe
     public void onChatMessage(ChatMessage event) throws IOException {
         if (!isMember) return;
+
+        if (Objects.equals(event.getMessage(), "!Oneshot"))
+            discordClient.sendLevelUp(Skill.AGILITY, 99);
+
+
+
         if (client.getWorldType().contains(WorldType.SEASONAL)) return;
         if ((event.getType() != ChatMessageType.GAMEMESSAGE && event.getType() != ChatMessageType.SPAM)) return;
 
@@ -652,7 +651,6 @@ public class OneShotPlugin extends Plugin
             ticksSinceLogin = 0;
             clientThread.invoke(this::initLevels);
             clientThread.invoke(this::initDiaries);
-            discordClient.refreshWebhooks();
         }
     }
 

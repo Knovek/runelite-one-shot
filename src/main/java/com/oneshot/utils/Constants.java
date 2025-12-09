@@ -18,14 +18,7 @@ public class Constants {
     public static final String CLAN_NAME = "One Shot";
     public static final int DEFAULT_PRIORITY = 5;
 
-    // configmanager for hcim scout
-    public static final String CONFIG_KEY = "one-shot";
-    public static final String CONFIG_KEY_SCOUT = "hcim-scout";
-    public static final String CONFIG_KEY_SCOUT_TEXT = "hcim-scout-text";
-    public static final String CONFIG_KEY_SCOUT_ICON = "hcim-scout-icon";
-    public static final String CONFIG_KEY_SCOUT_HIDE_PLAYERS = "hcim-scout-hide-players";
-    public static final String CONFIG_KEY_SCOUT_WILDERNESS_DISABLE = "hcim-scout-wilderness-disable";
-    public static final String CONFIG_KEY_SCOUT_LOOKUP_COOLDOWN = "hcim-scout-lookup-cooldown";
+    public static String WORKER_URL = "https://runelite-webhook-api.pqnarte.workers.dev/send";
 
     // Main Panel Buttons
     public static final String LINK_DISCORD = "https://www.discord.gg/one-shot";
@@ -423,9 +416,9 @@ public class Constants {
 
     // Combat Achievements
     public static final Map<String, String> COMBAT_ACHIEVEMENT_REWARDS_IMAGE_URL = Map.of(
-            "Easy", "https://oldschool.runescape.wiki/images/Combat_Achievements_-_easy_tier_icon.png",
-            "Medium", "https://oldschool.runescape.wiki/images/Combat_Achievements_-_medium_tier_icon.png",
-            "Hard", "https://oldschool.runescape.wiki/images/Combat_Achievements_-_hard_tier_icon.png",
+//            "Easy", "https://oldschool.runescape.wiki/images/Combat_Achievements_-_easy_tier_icon.png",
+//            "Medium", "https://oldschool.runescape.wiki/images/Combat_Achievements_-_medium_tier_icon.png",
+//            "Hard", "https://oldschool.runescape.wiki/images/Combat_Achievements_-_hard_tier_icon.png",
             "Elite", "https://oldschool.runescape.wiki/images/Combat_Achievements_-_elite_tier_icon.png",
             "Master", "https://oldschool.runescape.wiki/images/Combat_Achievements_-_master_tier_icon.png",
             "Grandmaster", "https://oldschool.runescape.wiki/images/Combat_Achievements_-_grandmaster_tier_icon.png"
@@ -462,7 +455,4 @@ public class Constants {
             "Monkey Madness II",
             "Song of the Elves",
             "While Guthix Sleeps");
-
-
-
 }
