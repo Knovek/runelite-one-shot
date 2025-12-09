@@ -61,15 +61,3 @@ tasks.register('shadowJar', Jar) {
 	archiveClassifier.set('shadow')
 	archiveFileName.set("${rootProject.name}-${project.version}-all.jar")
 }
-
-tasks.withType(JavaExec).configureEach {
-    def dotenv = new File(".env")
-    if (dotenv.exists()) {
-        dotenv.eachLine { line ->
-            if (line && !line.startsWith("#")) {
-                def (key, value) = line.split("=", 2)
-                environment key, value
-            }
-        }
-    }
-}
