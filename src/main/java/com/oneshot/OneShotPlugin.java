@@ -490,11 +490,6 @@ public class OneShotPlugin extends Plugin
     public void onChatMessage(ChatMessage event) throws IOException {
         if (!isMember) return;
 
-        if (Objects.equals(event.getMessage(), "!Oneshot"))
-            discordClient.sendLevelUp(Skill.AGILITY, 99);
-
-
-
         if (client.getWorldType().contains(WorldType.SEASONAL)) return;
         if ((event.getType() != ChatMessageType.GAMEMESSAGE && event.getType() != ChatMessageType.SPAM)) return;
 
