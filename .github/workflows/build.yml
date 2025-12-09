@@ -1,0 +1,27 @@
+name: Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set environment variables for the build
+        run: |
+          echo "WEBHOOK_PARTYPETE=${{ secrets.WEBHOOK_PARTYPETE }}" >> $GITHUB_ENV
+          echo "WEBHOOK_TOWNCRIER=${{ secrets.WEBHOOK_TOWNCRIER }}" >> $GITHUB_ENV
+          echo "WEBHOOK_DEATH=${{ secrets.WEBHOOK_DEATH }}" >> $GITHUB_ENV
+          echo "WEBHOOK_APPRECIATOR=${{ secrets.WEBHOOK_APPRECIATOR }}" >> $GITHUB_ENV
+
+      - name: Build plugin
+        run: ./gradlew build
+
+      - name: Deploy Notification
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+               -d '{"content": "Build completed"}' \
+               ${{ secrets.WEBHOOK_PARTYPETE }}
