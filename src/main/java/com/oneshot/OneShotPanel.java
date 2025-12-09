@@ -2,6 +2,7 @@ package com.oneshot;
 
 import com.google.gson.*;
 
+import com.oneshot.modules.ModToolsPanel;
 import com.oneshot.utils.Constants;
 import com.oneshot.utils.Icons;
 
@@ -16,16 +17,18 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.*;
-import java.util.function.Consumer;
 import javax.inject.Inject;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.text.StyleContext;
 
 import net.runelite.api.Client;
 import net.runelite.api.gameval.SpriteID;
 import net.runelite.api.Experience;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ChatIconManager;
 import net.runelite.client.game.SpriteManager;
 import net.runelite.client.hiscore.*;
@@ -48,7 +51,10 @@ import org.slf4j.LoggerFactory;
 
 
 public class OneShotPanel extends PluginPanel
-{   private static final Logger log = LoggerFactory.getLogger(OneShotPanel.class);
+{
+    private static final Logger log = LoggerFactory.getLogger(OneShotPanel.class);
+
+    private ModToolsPanel modToolsPanel;
 
     private final Map<HiscoreSkill, JButton> skillButtons = new HashMap<>();
     private final RateLimitedHttpCache rateLimitedHttpCache = new RateLimitedHttpCache(20, 5);
@@ -63,7 +69,17 @@ public class OneShotPanel extends PluginPanel
     Map<String, ImageIcon> allMembersIcons;
     Map<String, String> allMembersDisplayNames;
 
-    boolean isInInfoPanel = false;
+    private boolean isInInfoPanel = false;
+    private boolean isModerator = false;
+
+    private static final int TITLE_FONT_SIZE = 64;
+    private Font titleFont;
+
+    private JTable rolesTable;
+
+
+    ClientThread clientThread;
+    Client client;
 
 
     @Inject
@@ -73,86 +89,18 @@ public class OneShotPanel extends PluginPanel
     private SpriteManager spriteManager;
     private String playerName;
 
-    public class RateLimitedHttpCache {
-
-        private static final long TTL_MILLIS = 60 * 1000; // 1 minute
-        private final ConcurrentHashMap<String, CachedItem> cache = new ConcurrentHashMap<>();
-
-        private final Semaphore rateLimiter;
-        private final ScheduledExecutorService scheduler;
-        private final HttpClient httpClient = HttpClient.newHttpClient();
-
-        private class CachedItem {
-            final String response;
-            final long timestamp;
-
-            CachedItem(String response, long timestamp) {
-                this.response = response;
-                this.timestamp = timestamp;
-            }
-        }
-
-        public RateLimitedHttpCache(int maxRequests, int refillIntervalSeconds) {
-            this.rateLimiter = new Semaphore(maxRequests);
-            this.scheduler = Executors.newScheduledThreadPool(1);
-
-            // Refill one token every interval
-            scheduler.scheduleAtFixedRate(() -> {
-                if (rateLimiter.availablePermits() < maxRequests) {
-                    rateLimiter.release();
-                }
-            }, refillIntervalSeconds, refillIntervalSeconds, TimeUnit.SECONDS);
-        }
-
-        /**
-         * Fetch a URL: returns cached response if fresh.
-         * Returns null if rate limit has been exhausted.
-         */
-        public String fetch(String url) throws IOException, InterruptedException {
-            CachedItem item = cache.get(url);
-            long now = System.currentTimeMillis();
-
-            if (item != null && now - item.timestamp < TTL_MILLIS) {
-                return item.response;
-            }
-
-            // Non-blocking check for rate limiter
-            boolean allowed = rateLimiter.tryAcquire();
-            if (!allowed) {
-                // Rate limit exhausted → return null immediately
-                log.debug("no more tokens available");
-                return null;
-            }
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .GET()
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            String body = response.body();
-
-            // Store in cache
-            cache.put(url, new CachedItem(body, now));
-
-            return body;
-        }
-
-        public void shutdown() {
-            scheduler.shutdown();
-        }
-    }
-
-
-
-    public void init()
+    public void init(Client client, ClientThread clientThread, ModToolsPanel modToolsPanel)
     {
+        this.clientThread = clientThread;
+        this.client = client;
+        this.modToolsPanel = modToolsPanel;
+        loadFonts();
         buildIntroPanel();
     }
 
     public void deinit()
     {
-        // TODO
+        isInInfoPanel = false;
     }
 
     private void update()
@@ -161,61 +109,90 @@ public class OneShotPanel extends PluginPanel
         repaint();
     }
 
-    public void refresh(ArrayList<OneShotPlugin.OneShotMember> allMembersRanksInfo, Map<String, ImageIcon> membersIcons, Map<String, String> membersDisplayNames) throws IOException, InterruptedException {
+    public void refresh(boolean isModerator, String playerName, String clanRankName, ImageIcon iconRank,
+                        ArrayList<OneShotPlugin.OneShotMember> allMembersRanksInfo, Map<String, ImageIcon> members,
+                        Map<String, String> allMembersDisplayNames) throws IOException, InterruptedException {
         this.allMembersRanksInfo = allMembersRanksInfo;
-        this.allMembersIcons = membersIcons;
-        this.allMembersDisplayNames = membersDisplayNames;
+        this.allMembersIcons = members;
+        this.allMembersDisplayNames = allMembersDisplayNames;
+        this.playerRank = clanRankName;
+        if (isModerator != this.isModerator)
+        {
+            buildMainPanel(isModerator, playerName, clanRankName, iconRank,
+                allMembersRanksInfo, members,
+                allMembersDisplayNames);
+        }
+        if (isInInfoPanel) buildRolesPanel();
+        update();
     }
 
-    public void buildIntroPanel(){
-        removeAll();
-        ImageIcon icon = Icons.RED_HELM;
-        JLabel image = new JLabel(icon);
+    private void loadFonts()
+    {
+        try (InputStream in = FontManager.class.getResourceAsStream("runescape.ttf"))
+        {
+            Font baseFont = Font.createFont(0, in).deriveFont(0, 16.0F);
+            titleFont = StyleContext.getDefaultStyleContext().getFont(baseFont.getName(), 0, 64);
+        }
+        catch (Exception e)
+        {
+            throw new RuntimeException("Failed to load runescape.ttf", e);
+        }
+    }
 
+    private JPanel createTitlePanel(String text)
+    {
+        JPanel container = new JPanel(new BorderLayout());
+        container.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        container.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(ColorScheme.MEDIUM_GRAY_COLOR, 1),
+                BorderFactory.createEmptyBorder(4, 6, 4, 6) // Padding sized to text height
+        ));
+        JLabel titleText = new JLabel(text, SwingConstants.CENTER);
+        container.add(titleText);
+        return container;
+    }
+
+    public void buildIntroPanel()
+    {
+        removeAll();
         setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        Font fontTitle;
-
-        try (
-                InputStream inRunescape = FontManager.class.getResourceAsStream("runescape.ttf");
-        ) {
-            Font font = Font.createFont(0, inRunescape).deriveFont(0, 16.0F);
-            fontTitle = StyleContext.getDefaultStyleContext().getFont(font.getName(), 0, 64);
-        } catch (FontFormatException ex) {
-            throw new RuntimeException("Font loaded, but format incorrect.", ex);
-        } catch (IOException ex) {
-            throw new RuntimeException("Font file not found.", ex);
-        }
-
+        // Main title
         JLabel title = new JLabel("One Shot", SwingConstants.CENTER);
-        title.setFont(fontTitle);
+        title.setFont(titleFont);
 
-        changeIntroText1("Welcome to One Shot Plugin", Color.WHITE);
-        changeIntroText2("Please enter the clan chat to continue", Color.WHITE);
+        // Icon
+        JLabel iconLabel = new JLabel(Icons.RED_HELM);
 
+        // Default intro text
+        changeIntroText1("Welcome to One Shot Plugin");
+        changeIntroText2("Please enter the clan chat to continue");
+
+        // Footer label
+        JLabel hardcoreInfo = new JLabel("Hardcore Ironman exclusive", SwingConstants.CENTER);
 
         add(title);
-        add(Box.createGlue());
-        add(image);
-        add(Box.createGlue());
-        add(Box.createGlue());
+        add(hardcoreInfo);
+        add(Box.createVerticalStrut(10));
+        add(iconLabel);
+        add(Box.createVerticalStrut(15));
         add(intro_top_text);
         add(intro_bottom_text);
 
-        update();
+        revalidate();
+        repaint();
     }
 
-    public void changeIntroText1(String text, Color color){
+    public void changeIntroText1(String text)
+    {
         intro_top_text.setText(text);
-        intro_top_text.setForeground(color);
-        update();
     }
 
-    public void changeIntroText2(String text, Color color){
+    public void changeIntroText2(String text)
+    {
         intro_bottom_text.setText(text);
-        intro_bottom_text.setForeground(color);
-        update();
     }
+
 
     public void buildMainPanel(boolean isModerator, String playerName, String clanRankName, ImageIcon iconRank,
                                ArrayList<OneShotPlugin.OneShotMember> allMembersRanksInfo, Map<String, ImageIcon> members,
@@ -231,29 +208,52 @@ public class OneShotPanel extends PluginPanel
         this.playerName = playerName;
         this.playerRank = clanRankName;
 
-        JPanel playerRankPanel = buildPlayerPanel(playerName, clanRankName, iconRank);
-
         // button panel
         int nIcons = isModerator ? Constants.BUTTON_NUMBER : Constants.BUTTON_NUMBER - 1;
+        this.isModerator = isModerator;
 
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new GridLayout(1, nIcons, 5, 5));
 
         ImageIcon iconInfo = Icons.INFO;
-        ImageIcon iconRanks = Icons.EVENT;
+        ImageIcon iconRanks = Icons.RANKING;
         ImageIcon iconDiscord = Icons.DISCORD;
-        ImageIcon iconScout = Icons.SCOUT;
+        ImageIcon iconScout = Icons.MODTOOLS;
 
         JButton infoButton = buildButton(iconInfo, () -> {
             try {
-                buildInfoPanel();
+                buildRolesPanel();
             } catch (IOException | InterruptedException e) {
                 throw new RuntimeException(e);
             }
-        }, Constants.TIP_INFO);
-        JButton ranksButtons = buildButton(iconRanks, this::buildRanksPanel, Constants.TIP_RANKS);
+        }, Constants.TIP_ROLES);
+        JButton ranksButtons = buildButton(iconRanks, this::buildLeaderboardsPanel, Constants.TIP_LEADERBOARDS);
         JButton discordButton = buildButton(iconDiscord, this::buildDiscordPanel, Constants.TIP_DISCORD);
-        JButton scoutButton = buildButton(iconScout, this::buildScoutPanel, Constants.TIP_SCOUT);
+        JButton scoutButton = buildButton(iconScout, this::buildModToolsPanel, Constants.TIP_MODTOOLS);
+
+
+        ImageIcon icon = Icons.RED_HELM_SMALLER;
+        JLabel image = new JLabel(icon);
+
+        Font fontTitle;
+
+        try (
+                InputStream inRunescape = FontManager.class.getResourceAsStream("runescape.ttf");
+        ) {
+            Font font = Font.createFont(0, inRunescape).deriveFont(0, 16.0F);
+            fontTitle = StyleContext.getDefaultStyleContext().getFont(font.getName(), 0, 32);
+        } catch (FontFormatException ex) {
+            throw new RuntimeException("Font loaded, but format incorrect.", ex);
+        } catch (IOException ex) {
+            throw new RuntimeException("Font file not found.", ex);
+        }
+
+        JLabel title = new JLabel("One Shot", SwingConstants.CENTER);
+        title.setFont(fontTitle);
+
+        add(image);
+        add(Box.createGlue());
+        add(title);
 
         buttonPanel.add(infoButton);
         buttonPanel.add(ranksButtons);
@@ -262,62 +262,131 @@ public class OneShotPanel extends PluginPanel
         {
             buttonPanel.add(scoutButton);
         }
-
-        add(Box.createVerticalStrut(5));
-        add(playerRankPanel);
-
-        add(Box.createVerticalStrut(5));
         add(buttonPanel);
 
         // Main Panel
         panelMainContent.removeAll();
         add(panelMainContent);
 
-        // Version Panel
+
         update();
     }
 
-    private void buildInfoPanel() throws IOException, InterruptedException {
+    private void buildRolesPanel() throws IOException, InterruptedException {
         isInInfoPanel = true;
 
-        // all members ranks table TODO: add reminder to rank up if not done so yet
-
         panelMainContent.removeAll();
+        JPanel container = new JPanel();
+        container.setLayout(new BoxLayout(container, BoxLayout.Y_AXIS));
+        JPanel titlePanel = createTitlePanel("Clan Roles");
+        titlePanel.setPreferredSize(new Dimension(PluginPanel.PANEL_WIDTH - 20, 24));
+        container.add(titlePanel);
         JPanel allMembersRanks = buildAllMembersRanksTotal();
-        panelMainContent.add(allMembersRanks);
-
+        container.add(allMembersRanks);
+        panelMainContent.add(container);
         update();
+    }
+
+    private JPanel buildAllMembersRanksTotal() {
+        JPanel wrapper = new JPanel(new BorderLayout());
+//        wrapper.setBackground(ColorScheme.DARK_GRAY_COLOR);
+//        wrapper.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6)); // padding from edges
+
+        JPanel container = new JPanel();
+        container.setBorder(BorderFactory.createLineBorder(ColorScheme.MEDIUM_GRAY_COLOR, 1));
+        container.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+
+        container.setLayout(new GridBagLayout());
+
+        GridBagConstraints c = new GridBagConstraints();
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.gridx = 0;
+        c.gridy = 0;
+        c.ipadx = 10;
+        c.ipady = 1;
+        c.weightx=0.5;
+
+        JLabel HeaderIcon = new JLabel("Icon");
+        HeaderIcon.setHorizontalAlignment(SwingConstants.CENTER);
+        JLabel HeaderRank = new JLabel("Rank");
+        JLabel HeaderOnline = new JLabel("Online");
+        HeaderOnline.setHorizontalAlignment(SwingConstants.CENTER);
+        JLabel HeaderTotal = new JLabel("Total");
+        HeaderTotal.setHorizontalAlignment(SwingConstants.CENTER);
+        container.add(HeaderIcon, c);
+        c.gridx = 1;
+        container.add(HeaderRank, c);
+        c.gridx = 2;
+        container.add(HeaderOnline, c);
+        c.gridx = 3;
+        container.add(HeaderTotal, c);
+
+        //ArrayList<OneShotPlugin.MemberRank> allMembersRanksInfo;
+
+        for (OneShotPlugin.OneShotMember oneShotMember : allMembersRanksInfo)
+        {
+            JLabel iconLabel = new JLabel();
+            iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
+            iconLabel.setIcon(oneShotMember.getIcon());
+            JLabel rankLabel = new JLabel();
+            rankLabel.setText(oneShotMember.getName());
+            JLabel onlineLabel = new JLabel();
+            onlineLabel.setHorizontalAlignment(SwingConstants.CENTER);
+            onlineLabel.setText(String.valueOf(oneShotMember.getOnline()));
+            JLabel totalLabel = new JLabel();
+            totalLabel.setHorizontalAlignment(SwingConstants.CENTER);
+            totalLabel.setText(String.valueOf(oneShotMember.getTotal()));
+            if (Objects.equals(playerRank, oneShotMember.getName())) {
+                rankLabel.setForeground(Color.GREEN);
+                onlineLabel.setForeground(Color.GREEN);
+                totalLabel.setForeground(Color.GREEN);
+            };
+
+            c.gridy++;
+            c.gridx = 0;
+            container.add(iconLabel, c);
+            c.gridx = 1;
+            container.add(rankLabel, c);
+            c.gridx = 2;
+            container.add(onlineLabel, c);
+            c.gridx = 3;
+            container.add(totalLabel, c);
+        }
+
+        c.gridy++;
+        c.gridx = 0;
+        c.gridwidth = 4;
+
+        JLabel discordPlug = new JLabel("/rank in discord #bot-commands", SwingConstants.CENTER);
+        discordPlug.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        container.add(discordPlug, c);
+
+        wrapper.add(container, BorderLayout.CENTER);
+        return wrapper;
     }
 
     private JPanel buildTopChartsPanel() throws IOException, InterruptedException {
         JPanel container = new JPanel();
-
+        container.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
         container.setBackground(ColorScheme.DARK_GRAY_COLOR);
-        container.setLayout(new GridBagLayout());
+        container.setLayout(new BoxLayout(container, BoxLayout.Y_AXIS));
 
-        JLabel bottomText = new JLabel("One Shot top players Skills and KCs", SwingConstants.CENTER);
+        JPanel title = createTitlePanel("Top players Skills and KCs");
 
         String response = rateLimitedHttpCache.fetch(Constants.URI_WOM_LEADERS);
-
-        //log.debug(String.valueOf(Instant.now().getEpochSecond()));
 
         JsonParser jsonParser = new JsonParser();
         JsonElement jsonElement = jsonParser.parse(response);
 
         JsonElement metricLeaders = jsonElement.getAsJsonObject().get(Constants.URI_WOM_LEADERS_OBJECT);
 
-        // Expand sub items to fit width of panel, align to top of panel
-        GridBagConstraints c = createDefaultGBC();
-        c.insets = new Insets(1, 1, 1, 1);
-
-        container.add(bottomText, c);
-        c.gridy++;
+        container.add(title);
 
         // Panel that holds skill icons
         JPanel statsPanel = new JPanel();
+        statsPanel.setBorder(BorderFactory.createLineBorder(ColorScheme.MEDIUM_GRAY_COLOR, 1));
         statsPanel.setLayout(new GridLayout(8, 3));
         statsPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-        statsPanel.setBorder(new EmptyBorder(5, 0, 5, 0));
 
         // For each skill on the ingame skill panel, create a Label and add it to the UI
         for (HiscoreSkill skill : SKILLS)
@@ -326,19 +395,19 @@ public class OneShotPanel extends PluginPanel
             statsPanel.add(panel);
         }
 
-        container.add(statsPanel, c);
-        c.gridy++;
+        container.add(statsPanel);
 
         JPanel totalPanel = new JPanel();
+        totalPanel.setBorder(BorderFactory.createLineBorder(ColorScheme.MEDIUM_GRAY_COLOR, 1));
         totalPanel.setLayout(new GridLayout(1, 1));
         totalPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
         totalPanel.add(makeHiscorePanel(OVERALL));
 
-        container.add(totalPanel, c);
-        c.gridy++;
+        container.add(totalPanel);
 
         JPanel minigamePanel = new JPanel();
+        minigamePanel.setBorder(BorderFactory.createLineBorder(ColorScheme.MEDIUM_GRAY_COLOR, 1));
         minigamePanel.setLayout(new GridLayout(1, 2));
         minigamePanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
@@ -348,10 +417,10 @@ public class OneShotPanel extends PluginPanel
             minigamePanel.add(panel);
         }
 
-        container.add(minigamePanel, c);
-        c.gridy++;
+        container.add(minigamePanel);
 
         JPanel bossPanel = new JPanel();
+        bossPanel.setBorder(BorderFactory.createLineBorder(ColorScheme.MEDIUM_GRAY_COLOR, 1));
         bossPanel.setLayout(new GridLayout(0, 3));
         bossPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
@@ -362,10 +431,8 @@ public class OneShotPanel extends PluginPanel
             bossPanel.add(panel);
         }
 
-        container.add(bossPanel, c);
-        c.gridy++;
+        container.add(bossPanel);
 
-        //populateMetricLeaders(metricLeaders);
         populateMetricLeadersAsync(metricLeaders);
 
         return container;
@@ -594,7 +661,7 @@ public class OneShotPanel extends PluginPanel
         button.setBackground(ColorScheme.DARKER_GRAY_COLOR);
         button.setMargin(new Insets(0,0,0,0));
         button.setBorderPainted(false);
-        button.setPreferredSize(new Dimension(65,25));
+        button.setPreferredSize(new Dimension(60,25));
 
 
         spriteManager.getSpriteAsync(skill == null ? SpriteID.SideIcons.COMBAT : skill.getSpriteId(), 0, (sprite) ->
@@ -645,87 +712,6 @@ public class OneShotPanel extends PluginPanel
         skillPanel.add(button);
 
         return skillPanel;
-    }
-
-    private void buildSkillPlayers(HiscoreSkill skill, int pageNumber) throws IOException, InterruptedException {
-        panelMainContent.removeAll();
-
-        String skillName = normalizeSkillName(skill);
-        JsonArray arr = fetchSkillData(skillName);
-
-        if (arr == null)
-        {
-            JPanel empty = new JPanel();
-            empty.setLayout(new BoxLayout(empty, BoxLayout.Y_AXIS));
-            empty.add(goBackButton());
-
-            JLabel message1 = new JLabel("Hey wow, too fast!");
-            message1.setForeground(Color.RED); // red text
-            empty.add(message1);
-
-            JLabel message2 = new JLabel("Please slow down");
-            message2.setForeground(Color.RED); // red text
-            empty.add(message2);
-
-            panelMainContent.add(empty);
-            update();
-            return;
-        }
-
-        if (arr.size() == 0) {
-            JPanel empty = new JPanel();
-            empty.setLayout(new BoxLayout(empty, BoxLayout.Y_AXIS));
-            empty.add(goBackButton());
-
-            JLabel message = new JLabel("Seems no one is on the Hiscores");
-            message.setForeground(Color.RED); // red text
-            empty.add(message);
-
-            panelMainContent.add(empty);
-            update();
-            return;
-        }
-
-        int nPages = (int) Math.ceil(arr.size() / 10.0);
-        int playerIndex = (pageNumber - 1) * 10;
-        int playerLimit = Math.min(10, arr.size() - playerIndex);
-
-        int highlightPosition = findPlayerPosition(arr, this.playerName);
-        //log.debug("Player position: {}", highlightPosition);
-
-        JPanel container = new JPanel(new GridBagLayout());
-        GridBagConstraints c = createDefaultGBC();
-
-        // Top UI header
-        addHeader(container, c, skill);
-
-        // Player list panel
-        JPanel playerList = new JPanel(new GridBagLayout());
-        buildPlayerList(
-                playerList,
-                arr,
-                skill,
-                skillName,
-                playerIndex,
-                playerLimit,
-                highlightPosition
-        );
-
-        container.add(playerList, c);
-        c.gridy++;
-
-        // Page scroller
-        c.fill = GridBagConstraints.HORIZONTAL;
-        c.weightx = 1;
-        c.weighty = 0; // page scroller doesn't expand vertically
-        container.add(
-                buildSkillPlayersScroller(skill, pageNumber, nPages, highlightPosition),
-                c
-        );
-        c.gridy++;
-
-        panelMainContent.add(container);
-        update();
     }
 
     private void buildSkillPlayersAsync(HiscoreSkill skill, int pageNumber) {
@@ -807,20 +793,15 @@ public class OneShotPanel extends PluginPanel
         JPanel container = new JPanel(new GridBagLayout());
         GridBagConstraints c = createDefaultGBC();
 
+
+        // Add skill header
         addHeader(container, c, skill);
 
-        JPanel playerList = new JPanel(new GridBagLayout());
-        buildPlayerList(
-                playerList,
-                arr,
-                skill,
-                skillName,
-                playerIndex,
-                playerLimit,
-                highlightPosition
-        );
+        JComponent table = buildPlayerTable(
+                arr, skill, skillName,
+                playerIndex, playerLimit, highlightPosition);
 
-        container.add(playerList, c);
+        container.add(table, c);
         c.gridy++;
 
         c.fill = GridBagConstraints.HORIZONTAL;
@@ -843,7 +824,7 @@ public class OneShotPanel extends PluginPanel
         JPanel container = new JPanel(new GridBagLayout());
 
         GridBagConstraints c = createDefaultGBC();
-        log.debug(String.valueOf(playerPosition));
+//        log.debug(String.valueOf(playerPosition));
 
         int playerPage = (playerPosition / 10) + 1; // each page shows 10 players
 
@@ -1043,84 +1024,23 @@ public class OneShotPanel extends PluginPanel
         return StringUtils.leftPad(str, pad);
     }
 
-    private JPanel buildAllMembersRanksTotal() {
-
-        JPanel container = new JPanel();
-
-        container.setLayout(new GridBagLayout());
-
-        GridBagConstraints c = new GridBagConstraints();
-        c.fill = GridBagConstraints.HORIZONTAL;
-        c.gridx = 0;
-        c.gridy = 0;
-        c.ipadx = 10;
-        c.ipady = 1;
-        c.weightx=0.5;
-
-        JLabel HeaderIcon = new JLabel("Icon");
-        HeaderIcon.setHorizontalAlignment(SwingConstants.CENTER);
-        JLabel HeaderRank = new JLabel("Rank");
-        JLabel HeaderOnline = new JLabel("Online");
-        HeaderOnline.setHorizontalAlignment(SwingConstants.CENTER);
-        JLabel HeaderTotal = new JLabel("Total");
-        HeaderTotal.setHorizontalAlignment(SwingConstants.CENTER);
-        container.add(HeaderIcon, c);
-        c.gridx = 1;
-        container.add(HeaderRank, c);
-        c.gridx = 2;
-        container.add(HeaderOnline, c);
-        c.gridx = 3;
-        container.add(HeaderTotal, c);
-
-        //ArrayList<OneShotPlugin.MemberRank> allMembersRanksInfo;
-
-        for (OneShotPlugin.OneShotMember oneShotMember : allMembersRanksInfo)
-        {
-            JLabel iconLabel = new JLabel();
-            iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
-            iconLabel.setIcon(oneShotMember.getIcon());
-            JLabel rankLabel = new JLabel();
-            rankLabel.setText(oneShotMember.getName());
-            JLabel onlineLabel = new JLabel();
-            onlineLabel.setHorizontalAlignment(SwingConstants.CENTER);
-            onlineLabel.setText(String.valueOf(oneShotMember.getOnline()));
-            JLabel totalLabel = new JLabel();
-            totalLabel.setHorizontalAlignment(SwingConstants.CENTER);
-            totalLabel.setText(String.valueOf(oneShotMember.getTotal()));
-            if (Objects.equals(playerRank, oneShotMember.getName())) {
-                rankLabel.setForeground(Color.GREEN);
-                onlineLabel.setForeground(Color.GREEN);
-                totalLabel.setForeground(Color.GREEN);
-            };
-
-            c.gridy++;
-            c.gridx = 0;
-            container.add(iconLabel, c);
-            c.gridx = 1;
-            container.add(rankLabel, c);
-            c.gridx = 2;
-            container.add(onlineLabel, c);
-            c.gridx = 3;
-            container.add(totalLabel, c);
-        }
-
-        c.gridy++;
-        c.gridx = 0;
-        c.gridwidth = 4;
-
-        JLabel discordPlug = new JLabel("/rank in discord #bot-commands", SwingConstants.CENTER);
-        discordPlug.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        container.add(discordPlug, c);
-
-        return container;
-    }
 
     private void buildDiscordPanel() {
         LinkBrowser.browse(Constants.LINK_DISCORD);
+//        clientThread.invokeLater(() ->
+//        {
+//            client.addChatMessage(
+//                    ChatMessageType.GAMEMESSAGE,
+//                    "",
+//                    "You've completed enough Combat Achievement tasks to unlock Easy Tier rewards! You can now claim your rewards from Ghommal.",
+//                    null
+//            );
+//        });
     }
 
-    private void buildRanksPanel()
+    private void buildLeaderboardsPanel()
     {
+        isInInfoPanel = false;
         panelMainContent.removeAll();
         try {
             buildTopChartsAsync();
@@ -1132,11 +1052,10 @@ public class OneShotPanel extends PluginPanel
         update();
     }
 
-    private void buildScoutPanel() {
+    private void buildModToolsPanel() {
         panelMainContent.removeAll();
         isInInfoPanel = false;
-        JLabel info = new JLabel("Work In Progress");
-        panelMainContent.add(info);
+        panelMainContent.add(modToolsPanel);
 
         update();
     }
@@ -1221,14 +1140,6 @@ public class OneShotPanel extends PluginPanel
         return container;
     }
 
-    private static JLabel buildVersionPanel()
-    {
-        JLabel versionLabel = new JLabel();
-        String versionText = "<html><body style = 'color:#a5a5a5'>Plugin version: " + Constants.version + "</span></body></html>";
-        versionLabel.setText(versionText);
-        return versionLabel;
-    }
-
     private GridBagConstraints createDefaultGBC()
     {
         GridBagConstraints c = new GridBagConstraints();
@@ -1251,11 +1162,7 @@ public class OneShotPanel extends PluginPanel
         c.weightx = 1;
         c.fill = GridBagConstraints.HORIZONTAL;
         c.anchor = GridBagConstraints.CENTER;
-        container.add(new JLabel(" "), c);
-        c.gridy++;
-        container.add(new JLabel(skill.getName(), SwingConstants.CENTER), c);
-        c.gridy++;
-        container.add(new JLabel(" "), c);
+        container.add(buildSkillHeader(skill), c);
         c.gridy++;
     }
 
@@ -1307,9 +1214,7 @@ public class OneShotPanel extends PluginPanel
         return cleaned;
     }
 
-
-    private void buildPlayerList(
-            JPanel playerList,
+    private JComponent buildPlayerTable(
             JsonArray arr,
             HiscoreSkill skill,
             String skillName,
@@ -1317,66 +1222,384 @@ public class OneShotPanel extends PluginPanel
             int count,
             int highlightIndex)
     {
-        GridBagConstraints c = createDefaultGBC();
-
         boolean isSkill = SKILLS.contains(skill) || skillName.equals("overall");
         boolean isBoss = BOSSES.contains(skill);
 
-        // Header row
-        playerList.add(new JLabel("#", SwingConstants.CENTER), c);
-        c.gridx++;
-        playerList.add(new JLabel("Player", SwingConstants.CENTER), c);
-        c.gridx++;
-        playerList.add(new JLabel(isSkill ? "Level" : isBoss ? "Kills" : "Total", SwingConstants.CENTER), c);
-        c.gridx++;
-        if (isSkill)
-            playerList.add(new JLabel("Exp", SwingConstants.CENTER), c);
-        c.gridy++;
+        List<PlayerRow> rows = new ArrayList<>();
 
-        // Player rows
-        for (int i = startIndex; i < startIndex + count; i++)
+        for (int i = startIndex; i < startIndex + count && i < arr.size(); i++)
         {
             JsonObject entry = arr.get(i).getAsJsonObject();
             JsonObject pdata = entry.getAsJsonObject("player");
             JsonObject ddata = entry.getAsJsonObject("data");
 
-            String lowerName = pdata.get("username").getAsString().replace("\u00A0", " ");
-            String displayName = allMembersDisplayNames.get(lowerName);
-            ImageIcon icon = allMembersIcons.get(lowerName);
+            String lower = pdata.get("username").getAsString().replace("\u00A0", " ");
+            String display = allMembersDisplayNames.get(lower);
+            ImageIcon icon = allMembersIcons.get(lower);
 
-            // Position
-            c.gridx = 0;
-            playerList.add(new JLabel(String.valueOf(i + 1), SwingConstants.CENTER), c);
-            c.gridx++;
+            int level = isSkill ? ddata.get("level").getAsInt()
+                    : isBoss ? ddata.get("kills").getAsInt()
+                    : ddata.get("score").getAsInt();
 
-            // Name (highlight player)
-            JLabel nameLabel = new JLabel(displayName, icon, SwingConstants.LEFT);
-            if (i == highlightIndex)
-                nameLabel.setForeground(Color.GREEN);
+            long xp = isSkill ? ddata.get("experience").getAsLong() : 0;
 
-            playerList.add(nameLabel, c);
-            c.gridx++;
+            rows.add(new PlayerRow(
+                    i + 1,
+                    display,
+                    icon,
+                    level,
+                    isSkill ? formatNumber(xp) : "",
+                    i == highlightIndex
+            ));
+        }
 
-            // Level or KC
-            if (isSkill) {
-                playerList.add(new JLabel(ddata.get("level").getAsString(), SwingConstants.CENTER), c);
-                c.gridx++;
+        PlayerTableModel model = new PlayerTableModel(rows, isSkill, isBoss);
+        JTable table = new JTable(model)
+        {
+            @Override
+            public Component prepareRenderer(
+                    javax.swing.table.TableCellRenderer r, int row, int col)
+            {
+                Component c = super.prepareRenderer(r, row, col);
 
-                long xp = ddata.get("experience").getAsLong();
-                JLabel xpLabel = new JLabel(formatNumber(xp), SwingConstants.CENTER);
-                xpLabel.setToolTipText(QuantityFormatter.formatNumber(xp));
-                playerList.add(xpLabel, c);
+                if (!isRowSelected(row))
+                {
+                    c.setBackground(
+                            row % 2 == 0
+                                    ? new Color(26, 26, 26)
+                                    : new Color(32, 32, 32)
+                    );
+                }
+
+                return c;
             }
-            else if (isBoss){
-                playerList.add(new JLabel(ddata.get("kills").getAsString(), SwingConstants.CENTER), c);
-            }
-            else {
-                playerList.add(new JLabel(ddata.get("score").getAsString(), SwingConstants.CENTER), c);
-            }
+        };
 
-            c.gridy++;
+        styleTable(table, isSkill);
+
+        // Fix phantom extra column
+        while (table.getColumnModel().getColumnCount() > model.getColumnCount())
+        {
+            table.getColumnModel().removeColumn(
+                    table.getColumnModel().getColumn(
+                            table.getColumnModel().getColumnCount() - 1
+                    )
+            );
+        }
+
+        // Optional: stop JTable from resizing last column to fill viewport
+        table.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+
+        JScrollPane scrollPane = new JScrollPane(table);
+        scrollPane.setBorder(null); // optional: cleaner look
+        return scrollPane;
+    }
+
+
+    private static class PlayerRow {
+        final int rank;
+        final String name;
+        final ImageIcon icon;
+        final int level;
+        final String exp;
+        final boolean highlight;
+
+        PlayerRow(int rank, String name, ImageIcon icon,
+                  int level, String exp, boolean highlight)
+        {
+            this.rank = rank;
+            this.name = name;
+            this.icon = icon;
+            this.level = level;
+            this.exp = exp;
+            this.highlight = highlight;
         }
     }
+
+    private JPanel buildSkillHeader(HiscoreSkill skill) {
+        JPanel header = new JPanel() {
+            @Override
+            public Dimension getMaximumSize() {
+                return new Dimension(Integer.MAX_VALUE, super.getPreferredSize().height);
+            }
+        };
+        header.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 5));
+        header.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+        // Skill icon
+        JLabel iconLabel = new JLabel();
+        spriteManager.getSpriteAsync(
+                skill == null ? SpriteID.SideIcons.COMBAT : skill.getSpriteId(),
+                0,
+                sprite -> SwingUtilities.invokeLater(() -> {
+                    BufferedImage scaled = ImageUtil.resizeImage(ImageUtil.resizeCanvas(sprite, 25, 25), 30, 30);
+                    iconLabel.setIcon(new ImageIcon(scaled));
+                })
+        );
+
+        // Skill name (with shrinking only if needed)
+        final float originalFontSize = 18f;
+        JLabel nameLabel = new JLabel(skill.getName()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g;
+                Font font = getFont().deriveFont(originalFontSize);
+                FontMetrics fm = g2d.getFontMetrics(font);
+
+                int availableWidth = 180; // small padding
+                String text = getText();
+
+                // Only shrink if text width exceeds available width
+                if (fm.stringWidth(text) > availableWidth) {
+                    while (fm.stringWidth(text) > availableWidth && font.getSize() > 8) {
+                        font = font.deriveFont((float) (font.getSize() - 1));
+                        fm = g2d.getFontMetrics(font);
+                    }
+                }
+
+                setFont(font);
+                super.paintComponent(g);
+            }
+        };
+
+        nameLabel.setForeground(Color.WHITE);
+        nameLabel.setFont(FontManager.getRunescapeBoldFont().deriveFont(originalFontSize));
+
+        header.add(iconLabel);
+        header.add(nameLabel);
+
+        return header;
+    }
+
+
+
+    private static class PlayerTableModel extends javax.swing.table.AbstractTableModel {
+
+        private final List<PlayerRow> rows;
+        private final String[] cols;
+
+        PlayerTableModel(List<PlayerRow> rows, boolean skill, boolean boss)
+        {
+            this.rows = rows;
+            this.cols = skill
+                    ? new String[]{"#", "Player", "Level", "Exp"}
+                    : boss ? new String[]{"#", "Player", "Kills"}
+                    : new String[]{"#", "Player", "Total"};
+        }
+
+        @Override public int getRowCount() { return rows.size(); }
+        @Override public int getColumnCount() { return cols.length; }
+        @Override public String getColumnName(int c) { return cols[c]; }
+
+        @Override
+        public Object getValueAt(int r, int c)
+        {
+            PlayerRow row = rows.get(r);
+
+            if (cols.length == 4) { // Skill
+                switch(c) {
+                    case 0: return row.rank;
+                    case 1: return row;
+                    case 2: return row.level;
+                    case 3: return row.exp;
+                }
+            } else { // Boss / Activity
+                switch(c) {
+                    case 0: return row.rank;
+                    case 1: return row;
+                    case 2: return row.level; // kills or total
+                }
+            }
+
+            return null;
+        }
+
+
+        @Override
+        public Class<?> getColumnClass(int col)
+        {
+            return col == 0 || col == 2 ? Integer.class : Object.class;
+        }
+    }
+
+    private void styleTable(JTable table, boolean isSkill) {
+        table.setRowHeight(22);
+        table.setShowGrid(false);
+        table.setIntercellSpacing(new Dimension(0, 0));
+        table.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        table.setForeground(Color.WHITE);
+        table.setFont(FontManager.getRunescapeSmallFont());
+
+        table.getTableHeader().setReorderingAllowed(false);
+        table.getTableHeader().setResizingAllowed(false);
+
+        // Column widths
+        if (isSkill){
+            table.getColumnModel().getColumn(0).setMaxWidth(35);  // #
+            table.getColumnModel().getColumn(1).setMaxWidth(125); // name + icon
+            table.getColumnModel().getColumn(2).setMaxWidth(40);  // level/total
+            table.getColumnModel().getColumn(3).setMaxWidth(50); // only for skills
+        }
+        else {
+            table.getColumnModel().getColumn(0).setMaxWidth(55);  // #
+            table.getColumnModel().getColumn(1).setMaxWidth(130); // name + icon
+            table.getColumnModel().getColumn(2).setMaxWidth(60);  // kills/score
+        }
+
+
+        table.getColumnModel().getColumn(1).setCellRenderer(new PlayerRenderer());
+
+        // Numeric columns
+        for (int col = 0; col < table.getColumnCount(); col++) {
+            if (col != 1) {
+                table.getColumnModel().getColumn(col).setCellRenderer(new DefaultTableCellRenderer() {
+                    @Override
+                    public Component getTableCellRendererComponent(
+                            JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                        super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+
+                        PlayerTableModel model = (PlayerTableModel) table.getModel();
+                        PlayerRow playerRow = model.rows.get(row);
+
+                        if (playerRow.highlight) {
+                            setForeground(Color.GREEN);
+                            setBackground(new Color(0, 40, 0));
+                        } else if (isSelected) {
+                            setForeground(Color.WHITE);
+                            setBackground(new Color(50, 50, 50));
+                        } else {
+                            setForeground(Color.WHITE);
+                            setBackground(row % 2 == 0 ? new Color(26, 26, 26) : new Color(32, 32, 32));
+                        }
+
+                        setHorizontalAlignment(SwingConstants.CENTER);
+                        return this;
+                    }
+                });
+            }
+        }
+
+        // Adaptive width for the last column (Exp/Kills/Total)
+        if (isSkill) {
+            table.getColumnModel().getColumn(3).setMaxWidth(80);
+            table.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+        } else {
+            table.setAutoResizeMode(JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS);
+        }
+
+        table.setPreferredScrollableViewportSize(
+                new Dimension(panelMainContent.getWidth(), table.getRowHeight() * table.getRowCount())
+        );
+        table.setFillsViewportHeight(true);
+    }
+
+
+
+    private static class PlayerRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(
+                JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int col)
+        {
+            super.getTableCellRendererComponent(table, "", isSelected, hasFocus, row, col);
+
+            PlayerRow r = value instanceof PlayerRow ? (PlayerRow) value : null;
+
+            if (r != null) {
+                setText(" " + r.name);
+                setIcon(r.icon);
+                setHorizontalAlignment(LEFT);
+
+                if (r.highlight) {
+                    setForeground(Color.GREEN);
+                    setBackground(new Color(0, 40, 0)); // optional darker green background
+                } else if (isSelected) {
+                    setForeground(Color.WHITE);
+                    setBackground(new Color(50, 50, 50)); // selection color
+                } else {
+                    setForeground(Color.WHITE);
+                    setBackground(row % 2 == 0 ? new Color(26, 26, 26) : new Color(32, 32, 32));
+                }
+            }
+
+            return this;
+        }
+    }
+
+
+
+    public class RateLimitedHttpCache {
+
+        private static final long TTL_MILLIS = 60 * 1000; // 1 minute
+        private final ConcurrentHashMap<String, CachedItem> cache = new ConcurrentHashMap<>();
+
+        private final Semaphore rateLimiter;
+        private final ScheduledExecutorService scheduler;
+        private final HttpClient httpClient = HttpClient.newHttpClient();
+
+        private class CachedItem {
+            final String response;
+            final long timestamp;
+
+            CachedItem(String response, long timestamp) {
+                this.response = response;
+                this.timestamp = timestamp;
+            }
+        }
+
+        public RateLimitedHttpCache(int maxRequests, int refillIntervalSeconds) {
+            this.rateLimiter = new Semaphore(maxRequests);
+            this.scheduler = Executors.newScheduledThreadPool(1);
+
+            // Refill one token every interval
+            scheduler.scheduleAtFixedRate(() -> {
+                if (rateLimiter.availablePermits() < maxRequests) {
+                    rateLimiter.release();
+                }
+            }, refillIntervalSeconds, refillIntervalSeconds, TimeUnit.SECONDS);
+        }
+
+        /**
+         * Fetch a URL: returns cached response if fresh.
+         * Returns null if rate limit has been exhausted.
+         */
+        public String fetch(String url) throws IOException, InterruptedException {
+            CachedItem item = cache.get(url);
+            long now = System.currentTimeMillis();
+
+            if (item != null && now - item.timestamp < TTL_MILLIS) {
+                return item.response;
+            }
+
+            // Non-blocking check for rate limiter
+            boolean allowed = rateLimiter.tryAcquire();
+            if (!allowed) {
+                // Rate limit exhausted → return null immediately
+                log.debug("no more tokens available");
+                return null;
+            }
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            String body = response.body();
+
+            // Store in cache
+            cache.put(url, new CachedItem(body, now));
+
+            return body;
+        }
+
+        public void shutdown() {
+            scheduler.shutdown();
+        }
+    }
+
+
+
+
 }
 
 

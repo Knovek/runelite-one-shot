@@ -9,44 +9,40 @@ public interface OneShotConfig extends Config
 
     String GROUP = "oneshot";
 
+    @ConfigItem(
+            keyName = "version",
+            position = 0,
+            name = "version",
+            description = "version")
+    default String version() {return "v1.0.1"; }
+
     @ConfigSection(
-            name = "Discord Achievements",
+            name = "Discord Announcements",
             description = "Which achievements should be posted in One Shot discord?",
             position = 1
     )
     String DISCORD_SECTION = "Game Achievements";
 
     @ConfigItem(
-            keyName = "uploadscreenshots",
-            name = "Upload screenshots",
-            description = "Should we include a screenshot of your achievements?",
+            keyName = "announceLevel",
+            name = "Announce Level 99 or 200M XP",
+            description = "Should we announce when you reach Level 99 or 200M XP in a skill to discord #achievements?",
             section = DISCORD_SECTION,
-            position = 2
+            position = 3
     )
-    default boolean uploadscreenshots(){
+    default boolean announceLevel(){
         return true;
     }
 
     @ConfigItem(
-            keyName = "announce99",
-            name = "Announce Level 99",
-            description = "Should we announce when you reach Level 99 in a skill to discord #achievements?",
-            section = DISCORD_SECTION,
-            position = 3
-    )
-    default boolean announce99(){
-        return false;
-    }
-
-    @ConfigItem(
-            keyName = "announcemaxed",
-            name = "Announce Maxed",
-            description = "Should we announce when you reach Level 99 in all skills to discord #achievements?",
+            keyName = "announceelites",
+            name = "Announce Elite Diaries",
+            description = "Should we announce when you complete Elite Diaries to discord #achievements?",
             section = DISCORD_SECTION,
             position = 4
     )
-    default boolean announcemaxed(){
-        return false;
+    default boolean announceelites(){
+        return true;
     }
 
     @ConfigItem(
@@ -57,45 +53,137 @@ public interface OneShotConfig extends Config
             position = 5
     )
     default boolean announcegmquests(){
-        return false;
+        return true;
     }
 
     @ConfigItem(
-            keyName = "announceelites",
-            name = "Announce Elite Diaries",
-            description = "Should we announce when you complete Elite Diaries to discord #achievements?",
+            keyName = "announcepets",
+            name = "Announce Pets",
+            description = "Should we announce when you receive a new pet in #loot-drop",
             section = DISCORD_SECTION,
-            position = 6
+            position = 7
     )
-    default boolean announceelites(){
-        return false;
+    default boolean announcepets(){
+        return true;
     }
+
+    @ConfigItem(
+            keyName = "announceloot",
+            name = "Announce Poggers Collection Logs",
+            description = "Should we announce when you receive a poggers collection log to discord #loot-drop",
+            section = DISCORD_SECTION,
+            position = 8
+    )
+    default boolean announceloot(){
+        return true;
+    }
+
 
     @ConfigItem(
             keyName = "announcedeaths",
             name = "Announce Deaths",
             description = "Should we announce when you die to discord #deaths?",
             section = DISCORD_SECTION,
-            position = 7
+            position = 9
     )
     default boolean announcedeaths(){
         return true;
     }
 
-    @ConfigSection(
-            name = "HCIM Scout",
-            description = "Enable to hide every non-HCIM player",
-            position = 2,
-            closedByDefault = true
+
+    @ConfigItem(
+            keyName = "announcecas",
+            name = "Announce Combat Achievements Tier Rewards",
+            description = "Should we announce when you unlock a new elite/master/grandmaster combat achievement tier reward?",
+            section = DISCORD_SECTION,
+            position = 10
     )
-    String SECTION_SCOUT = "HCIM Scout";
+    default boolean announcecas(){
+        return true;
+    }
+
+
+
+    @ConfigSection(
+            name = "Discord Options",
+            description = "To customize your announcements a bit more",
+            position = 1
+    )
+    String DISCORD_SECTION_OPTIONS = "Discord Options";
+
+    @ConfigItem(
+            keyName = "uploadscreenshots",
+            name = "Upload screenshots",
+            description = "Should we include a screenshot of your achievements?",
+            section = DISCORD_SECTION_OPTIONS,
+            position = 1
+    )
+    default boolean uploadscreenshots(){
+        return true;
+    }
+
+    @ConfigItem(
+            keyName = "hidechat",
+            name = "Hide chats",
+            description = "Hides chat when sending screenshots",
+            section = DISCORD_SECTION_OPTIONS,
+            position = 2
+    )
+    default boolean hidechats(){
+        return true;
+    }
+
+
+    @ConfigItem(
+            keyName = "uploadTotalQuestPoints",
+            name = "Include quest stats",
+            description = "Should we include total quests done and quest points when announcing a quest completion?",
+            section = DISCORD_SECTION_OPTIONS,
+            position = 3
+    )
+    default boolean uploadTotalQuestPoints(){
+        return true;
+    }
+
+    @ConfigItem(
+            keyName = "webhooks",
+            name = "Webhooks",
+            description = "You can get this info from discord",
+            section = DISCORD_SECTION_OPTIONS,
+            position = 4,
+            secret = true
+    )
+    default String webhooks() {return "";}
+
+
+    @ConfigItem(
+            keyName = "hcimscoutEnable",
+            name = "Enable Scouting",
+            description = "Enable to start scouting HCIM players",
+            hidden = true
+    )
+    default boolean hcimscoutEnable(){
+        return false;
+    }
+
+
+    @ConfigItem(
+            keyName = "hcimscoutMinimumTotal",
+            name = "Total scout filter",
+            description = "Set the desired minimum total level",
+            hidden = true
+    )
+    @Range(min = 1, max = 3000)
+    default int hcimscoutMinimumTotal(){
+        return 1000;
+    }
+
 
     @ConfigItem(
             keyName = "hcimscoutHide",
             name = "Hide non-HCIM players",
             description = "Enable to hide every player that is not an hardcore ironman",
-            section = SECTION_SCOUT,
-            position = 1
+            hidden = true
     )
     default boolean hcimscoutHide(){
         return false;
@@ -105,8 +193,7 @@ public interface OneShotConfig extends Config
             keyName = "hcimscoutRedHelm",
             name = "Draw Helm",
             description = "Draw Red Helms above HCIM Players",
-            section = SECTION_SCOUT,
-            position = 2
+            hidden = true
     )
     default boolean hcimscoutRedHelm(){
         return false;
@@ -116,8 +203,7 @@ public interface OneShotConfig extends Config
             keyName = "hcimscoutRedText",
             name = "Draw Text",
             description = "Draw Red text above HCIM Players",
-            section = SECTION_SCOUT,
-            position = 3
+            hidden = true
     )
     default boolean hcimscoutRedText(){
         return false;
@@ -127,8 +213,7 @@ public interface OneShotConfig extends Config
             keyName = "hcimscoutWilderness",
             name = "Disable in Wilderness",
             description = "Enable to prevent entity hider from working in wilderness",
-            section = SECTION_SCOUT,
-            position = 4
+            hidden = true
     )
     default boolean hcimscoutWilderness(){
         return true;
@@ -137,23 +222,11 @@ public interface OneShotConfig extends Config
     @ConfigItem(
             keyName = "lookupCooldown",
             name = "Lookup cooldown",
-            description = "Ticks between each lookup cooldown, to avoid spamming API",
-            section = SECTION_SCOUT,
-            position = 4
+            description = "Lookup cooldown (ticks)",
+            hidden = true
     )
     @Range(min = 1, max = 20)
     default int lookupCooldown(){ return 2; }
-
-    @ConfigItem(
-            keyName = "cacheDuration",
-            name = "Lookup cache duration",
-            description = "Duration in minutes to cache player status",
-            section = SECTION_SCOUT,
-            position = 5,
-            hidden = true
-    )
-    @Range(min = 10, max = 360)
-    default int cacheDuration() { return 360; }
 
 
 }
