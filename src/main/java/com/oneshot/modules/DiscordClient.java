@@ -43,7 +43,7 @@ import java.util.Base64;
 @Singleton
 public class DiscordClient {
 
-    private static final Logger log = LoggerFactory.getLogger(OneShotPlugin.class);
+    private static final Logger log = LoggerFactory.getLogger(DiscordClient.class);
 
     private final String partypete = "PARTYPETE";
     private final String towncrier = "TOWNCRIER";

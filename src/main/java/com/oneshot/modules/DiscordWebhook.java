@@ -1,5 +1,9 @@
 package com.oneshot.modules;
 
+import com.oneshot.OneShotPanel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.net.ssl.HttpsURLConnection;
 import java.awt.Color;
 import java.io.IOException;
@@ -15,6 +19,7 @@ import java.util.*;
  * Come from: https://gist.github.com/k3kdude/fba6f6b37594eae3d6f9475330733bdb
  */
 public class DiscordWebhook {
+    private static final Logger log = LoggerFactory.getLogger(DiscordWebhook.class);
 
     private final String url;
     private String content;
@@ -284,8 +289,8 @@ public class DiscordWebhook {
         responseStream.close();
 
         if (status >= 400) {
-            System.err.println("Discord webhook failed:");
-            System.err.println("HTTP " + status + " -> " + response);
+            log.error("Discord webhook failed:");
+            log.error("HTTP {} -> {}", status, response);
         }
 
         connection.disconnect();

@@ -1,7 +1,8 @@
 package com.oneshot.modules;
 
-import com.oneshot.utils.Constants;
 import net.runelite.api.gameval.VarbitID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -12,6 +13,7 @@ import java.util.Set;
 
 public final class DiaryImages
 {
+    private static final Logger log = LoggerFactory.getLogger(DiaryImages.class);
     public static class DiaryInfo
     {
         private final String area;
@@ -243,7 +245,7 @@ public final class DiaryImages
         catch (Throwable t)
         {
             // Replace with your logger if available
-            System.err.println("Failed to reflect VarbitID: " + t);
+            log.debug("Failed to reflect VarbitID: " + t);
         }
         return Collections.unmodifiableMap(out);
     }
