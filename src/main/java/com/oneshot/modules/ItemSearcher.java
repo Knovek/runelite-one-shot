@@ -26,7 +26,7 @@ import java.util.function.Function;
  */
 @Singleton
 public class ItemSearcher {
-    private static final Logger log = LoggerFactory.getLogger(OneShotPlugin.class);
+    private static final Logger log = LoggerFactory.getLogger(ItemSearcher.class);
 
     private final Map<String, Integer> itemIdByName = Collections.synchronizedMap(new HashMap<>(16384));
     private @Inject OkHttpClient httpClient;
@@ -123,12 +123,10 @@ public class ItemSearcher {
             @Override
             public void onResponse(Call call, Response response) {
                 assert response.body() != null;
-                try (Reader reader = response.body().charStream()) {
+                try (response; Reader reader = response.body().charStream()) {
                     future.complete(transformer.apply(reader));
                 } catch (Exception e) {
                     future.completeExceptionally(e);
-                } finally {
-                    response.close();
                 }
             }
         });
