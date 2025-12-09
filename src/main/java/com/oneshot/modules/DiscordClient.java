@@ -63,7 +63,9 @@ public class DiscordClient {
 
     private static final MediaType JSON_MEDIA = MediaType.get("application/json; charset=utf-8");
     private static final String WORKER_URL = Constants.WORKER_URL;
-    private final OkHttpClient httpClient = new OkHttpClient();
+
+    @Inject
+    private OkHttpClient httpClient;
 
 
     @Inject

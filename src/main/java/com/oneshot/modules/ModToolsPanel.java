@@ -1,26 +1,5 @@
 package com.oneshot.modules;
 
-//import com.google.gson.Gson;
-//import com.oneshot.OneShotConfig;
-//import net.runelite.client.config.ConfigManager;
-//import net.runelite.client.ui.ColorScheme;
-//import net.runelite.client.ui.PluginPanel;
-//import javax.swing.*;
-//import java.awt.*;
-//
-//
-//import okhttp3.*;
-//
-//import javax.inject.Inject;
-//import javax.inject.Singleton;
-//import javax.swing.*;
-//import java.awt.*;
-//import java.awt.datatransfer.StringSelection;
-//import java.awt.event.ActionListener;
-//import java.awt.image.BufferedImage;
-//import java.io.IOException;
-
-
 import com.google.gson.*;
 
 import com.oneshot.OneShotConfig;
@@ -314,7 +293,7 @@ public class ModToolsPanel extends PluginPanel
 
     private void parseWom(String json)
     {
-        JsonObject root = new Gson().fromJson(json, JsonObject.class);
+        JsonObject root = gson.fromJson(json, JsonObject.class);
         JsonArray memberships = root.getAsJsonArray("memberships");
 
         for (JsonElement el : memberships)
