@@ -1,6 +1,5 @@
 package com.oneshot.modules;
 
-import com.oneshot.OneShotPanel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -9,7 +8,6 @@ import java.awt.Color;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.Array;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -677,14 +675,18 @@ public class DiscordWebhook {
                     builder.append(val);
                 } else if (val instanceof JSONObject) {
                     builder.append(val.toString());
-                } else if (val.getClass().isArray()) {
+                } else if (val instanceof Object[]) {
+                    Object[] arr = (Object[]) val;
                     builder.append("[");
-                    int len = Array.getLength(val);
-                    for (int j = 0; j < len; j++) {
-                        builder.append(Array.get(val, j).toString()).append(j != len - 1 ? "," : "");
+                    for (int j = 0; j < arr.length; j++) {
+                        builder.append(arr[j].toString());
+                        if (j != arr.length - 1) {
+                            builder.append(",");
+                        }
                     }
                     builder.append("]");
                 }
+
 
                 builder.append(++i == entrySet.size() ? "}" : ",");
             }

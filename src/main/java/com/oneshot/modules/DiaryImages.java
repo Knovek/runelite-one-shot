@@ -4,11 +4,6 @@ import net.runelite.api.gameval.VarbitID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 
 public final class DiaryImages
@@ -185,118 +180,6 @@ public final class DiaryImages
         tier = getDiaryTier(varbitId);
 
         return new DiaryInfo(area, tier);
-    }
-
-
-    // small region -> base filename map
-    private static final Map<String, String> DIARY_REGION_ITEM_BASE;
-    static
-    {
-        Map<String, String> m = new HashMap<>();
-        m.put("ARDOUGNE", "Ardougne_cloak");
-        m.put("DESERT", "Desert_amulet");
-        m.put("FALADOR", "Falador_shield");
-        m.put("FREMENNIK", "Fremennik_sea_boots");
-        m.put("KANDARIN", "Kandarin_headgear");
-        m.put("KARAMJA", "Karamja_gloves");
-        m.put("KOUREND", "Rada's_blessing");
-        m.put("LUMBRIDGE", "Explorer's_ring");
-        m.put("MORYTANIA", "Morytania_legs");
-        m.put("VARROCK", "Varrock_armour");
-        m.put("WESTERN", "Western_banner");
-        m.put("WILDERNESS", "Wilderness_sword");
-        DIARY_REGION_ITEM_BASE = Collections.unmodifiableMap(m);
-    }
-
-    // alias map for special varbit prefixes
-    private static final Map<String, String> DIARY_REGION_ALIASES;
-    static
-    {
-        Map<String, String> m = new HashMap<>();
-        m.put("ATJUN", "KARAMJA"); // special-case mapping
-        DIARY_REGION_ALIASES = Collections.unmodifiableMap(m);
-    }
-
-    private static Map<Integer, String> buildVarbitNameMap()
-    {
-        Map<Integer, String> out = new HashMap<>();
-        try
-        {
-            // Reflect over VarbitID public static fields
-            for (Field f : VarbitID.class.getFields())
-            {
-                int mods = f.getModifiers();
-                if (!Modifier.isStatic(mods) || f.getType() != int.class)
-                {
-                    continue;
-                }
-                try
-                {
-                    int value = f.getInt(null);
-                    String name = f.getName();
-                    out.put(value, name);
-                }
-                catch (IllegalAccessException ignore)
-                {
-                    // should not happen for public fields; skip defensively
-                }
-            }
-        }
-        catch (Throwable t)
-        {
-            // Replace with your logger if available
-            log.debug("Failed to reflect VarbitID: " + t);
-        }
-        return Collections.unmodifiableMap(out);
-    }
-
-    private static int tierNumber(String varbitName)
-    {
-        if (varbitName.contains("EASY") || varbitName.contains("_EASY_") || varbitName.endsWith("_EASY_DONE")) return 1;
-        if (varbitName.contains("MEDIUM") || varbitName.contains("_MED_") || varbitName.endsWith("_MED_DONE")) return 2;
-        if (varbitName.contains("HARD") || varbitName.contains("_HARD_") || varbitName.endsWith("_HARD_DONE")) return 3;
-        if (varbitName.contains("ELITE") || varbitName.contains("_ELITE_") || varbitName.endsWith("_ELITE_COMPLETE")) return 4;
-        return -1;
-    }
-
-    private static String resolveRegion(String varbitName)
-    {
-        // try known regions first
-        for (String region : DIARY_REGION_ITEM_BASE.keySet())
-        {
-            if (varbitName.startsWith(region + "_") || varbitName.startsWith(region + " "))
-            {
-                return region;
-            }
-        }
-
-        // then aliases
-        for (Map.Entry<String, String> e : DIARY_REGION_ALIASES.entrySet())
-        {
-            if (varbitName.startsWith(e.getKey() + "_") || varbitName.startsWith(e.getKey() + " "))
-            {
-                return e.getValue();
-            }
-        }
-
-        // last resort: try prefix match (handles different naming patterns)
-        for (String region : DIARY_REGION_ITEM_BASE.keySet())
-        {
-            if (varbitName.startsWith(region))
-            {
-                return region;
-            }
-        }
-
-        for (String alias : DIARY_REGION_ALIASES.keySet())
-        {
-            if (varbitName.startsWith(alias))
-            {
-                return DIARY_REGION_ALIASES.get(alias);
-            }
-        }
-
-        return null;
     }
 }
 
