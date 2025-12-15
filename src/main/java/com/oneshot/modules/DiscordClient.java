@@ -1,7 +1,6 @@
 package com.oneshot.modules;
 
 import com.oneshot.OneShotConfig;
-import com.oneshot.OneShotPlugin;
 import com.oneshot.utils.Constants;
 import com.oneshot.utils.Icons;
 import net.runelite.api.Client;
@@ -128,7 +127,6 @@ public class DiscordClient {
                         title,
                         Constants.DISCORD_LEVELS_COLOR,
                         playerName,
-                        username,
                         null,
                         description,
                         fields,
@@ -176,7 +174,6 @@ public class DiscordClient {
                         title,
                         Constants.DISCORD_LEVELS_COLOR,
                         playerName,
-                        null,
                         null,
                         description,
                         fields,
@@ -255,7 +252,6 @@ public class DiscordClient {
                         title,
                         Constants.DISCORD_QUESTS_COLOR,
                         playerName,
-                        username,
                         null,
                         description,
                         fields,
@@ -311,7 +307,6 @@ public class DiscordClient {
                         title,
                         Constants.DISCORD_DIARIES_COLOR,
                         playerName,
-                        username,
                         url,
                         description,
                         fields,
@@ -365,7 +360,6 @@ public class DiscordClient {
                         title,
                         Constants.DISCORD_COMBAT_ACHIEVEMENTS_COLOR,
                         playerName,
-                        username,
                         url,
                         description,
                         fields,
@@ -424,7 +418,6 @@ public class DiscordClient {
                         title,
                         Constants.DISCORD_PETS_COLOR,
                         playerName,
-                        username,
                         url,
                         description,
                         fields,
@@ -515,7 +508,6 @@ public class DiscordClient {
                         title,
                         Constants.DISCORD_LOOT_COLOR,
                         playerName,
-                        username,
                         url,
                         description,
                         fields,
@@ -593,7 +585,6 @@ public class DiscordClient {
                             title,
                             Constants.DISCORD_DEATHS_COLOR,
                             playerName,
-                            username,
                             url,
                             description,
                             fields,
@@ -613,7 +604,6 @@ public class DiscordClient {
                     title,
                     Constants.DISCORD_DEATHS_COLOR,
                     playerName,
-                    username,
                     url,
                     description,
                     fields,
@@ -859,7 +849,6 @@ public class DiscordClient {
             String title,
             Color color,
             @Nullable String authorName,
-            @Nullable String username,
             @Nullable String url,
             @Nullable String description,
             @Nullable List<DiscordField> fields,
@@ -902,7 +891,6 @@ public class DiscordClient {
             String title,
             Color color,
             @Nullable String authorName,
-            @Nullable String username,
             @Nullable String url,
             @Nullable String description,
             @Nullable List<DiscordField> fields,
@@ -921,7 +909,7 @@ public class DiscordClient {
         if (description != null) embed.setDescription(description);
         if (url != null) embed.setUrl(url);
         if (userIcon != null) embed.setAuthor(authorName, userIcon, "usericon.png");
-        if (url != null) embed.setUrl(url);
+        if (thumbnailUrl != null) embed.setThumbnail(thumbnailUrl);
         if (screenshot != null) embed.setImage(screenshot, "screenshot.png");
 
         if (fields != null) {
