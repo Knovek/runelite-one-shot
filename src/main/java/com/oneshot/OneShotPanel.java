@@ -29,7 +29,6 @@ import net.runelite.api.Client;
 import net.runelite.api.gameval.SpriteID;
 import net.runelite.api.Experience;
 import net.runelite.client.callback.ClientThread;
-import net.runelite.client.game.ChatIconManager;
 import net.runelite.client.game.SpriteManager;
 import net.runelite.client.hiscore.*;
 
@@ -72,18 +71,10 @@ public class OneShotPanel extends PluginPanel
     private boolean isInInfoPanel = false;
     private boolean isModerator = false;
 
-    private static final int TITLE_FONT_SIZE = 64;
     private Font titleFont;
-
-    private JTable rolesTable;
-
 
     ClientThread clientThread;
     Client client;
-
-
-    @Inject
-    private ChatIconManager chatIconManager;
 
     @Inject
     private SpriteManager spriteManager;

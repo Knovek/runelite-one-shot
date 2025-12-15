@@ -2,7 +2,6 @@ package com.oneshot.modules;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import com.oneshot.OneShotPlugin;
 import okhttp3.*;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
