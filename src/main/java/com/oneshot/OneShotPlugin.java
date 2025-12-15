@@ -100,8 +100,6 @@ public class OneShotPlugin extends Plugin
     private final Map<Skill, Integer> currentXp = new EnumMap<>(Skill.class);
     public static final int LEVEL_FOR_MAX_XP = Experience.MAX_VIRT_LEVEL + 1; // 127
     private static final Set<WorldType> SPECIAL_WORLDS = Set.of(WorldType.PVP_ARENA, WorldType.QUEST_SPEEDRUNNING, WorldType.BETA_WORLD, WorldType.NOSAVE_MODE, WorldType.TOURNAMENT_WORLD, WorldType.DEADMAN, WorldType.SEASONAL);
-    private static final int SKILL_COUNT = Skill.values().length;
-    private final BlockingQueue<String> levelledSkills = new ArrayBlockingQueue<>(SKILL_COUNT + 1);
     private static final int LOGIN_IGNORE_TICKS = 5;
     private int ticksSinceLogin = LOGIN_IGNORE_TICKS;
     private final Map<Integer, Integer> lastVarbitValues = new HashMap<>();
@@ -239,7 +237,6 @@ public class OneShotPlugin extends Plugin
 
         if (channel == null)
         {
-            modTools.deinit();
             panel.buildIntroPanel();
             isMember = false;
             isModerator = false;
@@ -255,7 +252,6 @@ public class OneShotPlugin extends Plugin
             panel.changeIntroText1("You are not part of One Shot CC");
             panel.changeIntroText2("You don't have access, sorry");
 
-            modTools.deinit();
             isMember = false;
             isModerator = false;
             return;
@@ -267,7 +263,6 @@ public class OneShotPlugin extends Plugin
             panel.changeIntroText1("You are currently a guest of One Shot");
             panel.changeIntroText2("Become a member today!");
 
-            modTools.deinit();
             isMember = false;
             isModerator = false;
             return;
@@ -284,8 +279,6 @@ public class OneShotPlugin extends Plugin
 
         if (isModerator)
             modTools.init(modToolsPanel);
-        else
-            modTools.deinit();
 
         panel.buildMainPanel(
                 isModerator,
@@ -539,9 +532,6 @@ public class OneShotPlugin extends Plugin
         updateRankAndPanel();
         discordClient.onGameTick();
 
-        if (isModerator)
-            modTools.gameTick();
-
         handleLoginInitialization();
         handlePendingScreenshot();
     }
@@ -570,7 +560,6 @@ public class OneShotPlugin extends Plugin
             {
                 this.isModerator = nowModerator;
                 if (nowModerator) modTools.init(modToolsPanel);
-                else modTools.deinit();
             }
 
             panel.refresh(
@@ -636,7 +625,7 @@ public class OneShotPlugin extends Plugin
     @Subscribe
     public void onGameStateChanged(GameStateChanged gameStateChanged)
     {
-        log.debug(String.format("GameStateChanged: %s", gameStateChanged.getGameState()));
+//        log.debug(String.format("GameStateChanged: %s", gameStateChanged.getGameState()));
         if (gameStateChanged.getGameState() == GameState.LOADING) return;
         if (gameStateChanged.getGameState() == GameState.LOGIN_SCREEN) {
             this.resetLevels();
@@ -727,7 +716,6 @@ public class OneShotPlugin extends Plugin
     public void resetLevels() {
         levelsInitialized = false;
 
-        levelledSkills.clear();
         clientThread.invoke(() -> {
             currentXp.clear();
             currentLevels.clear();
