@@ -108,7 +108,8 @@ public final class DiaryImages
         // ----- AREA -----
         if (varbitId == VarbitID.ATJUN_EASY_DONE
                 || varbitId == VarbitID.ATJUN_MED_DONE
-                || varbitId == VarbitID.ATJUN_HARD_DONE)
+                || varbitId == VarbitID.ATJUN_HARD_DONE
+                || varbitId == VarbitID.KARAMJA_DIARY_ELITE_COMPLETE)
         {
             area = "Karamja";
         }
@@ -166,10 +167,6 @@ public final class DiaryImages
                 && varbitId <= VarbitID.KOUREND_DIARY_ELITE_COMPLETE)
         {
             area = "Kourend & Kebos";
-        }
-        else if (varbitId == VarbitID.KARAMJA_DIARY_ELITE_COMPLETE)
-        {
-            area = "Karamja";
         }
         else
         {
