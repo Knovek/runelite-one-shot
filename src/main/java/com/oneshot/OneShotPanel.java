@@ -53,7 +53,7 @@ public class OneShotPanel extends PluginPanel
     private ModToolsPanel modToolsPanel;
 
     private final Map<HiscoreSkill, JButton> skillButtons = new HashMap<>();
-    private final RateLimitedHttpCache rateLimitedHttpCache = new RateLimitedHttpCache(20, 5);
+    private RateLimitedHttpCache rateLimitedHttpCache;
 
     JLabel intro_top_text = new JLabel("", SwingConstants.CENTER);
     JLabel intro_bottom_text = new JLabel("", SwingConstants.CENTER);
@@ -87,11 +87,13 @@ public class OneShotPanel extends PluginPanel
         this.modToolsPanel = modToolsPanel;
         loadFonts();
         buildIntroPanel();
+        rateLimitedHttpCache = new RateLimitedHttpCache(20, 5);
     }
 
     public void deinit()
     {
         isInInfoPanel = false;
+        rateLimitedHttpCache.shutdown();
     }
 
     private void update()
