@@ -12,10 +12,6 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.*;
@@ -44,6 +40,7 @@ import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.LinkBrowser;
 import net.runelite.client.util.QuantityFormatter;
 
+import okhttp3.*;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,6 +72,9 @@ public class OneShotPanel extends PluginPanel
 
     ClientThread clientThread;
     Client client;
+
+    @Inject
+    private OkHttpClient httpClient;
 
     @Inject
     private SpriteManager spriteManager;
@@ -1522,10 +1522,9 @@ public class OneShotPanel extends PluginPanel
 
         private static final long TTL_MILLIS = 60 * 1000; // 1 minute
         private final ConcurrentHashMap<String, CachedItem> cache = new ConcurrentHashMap<>();
-
         private final Semaphore rateLimiter;
         private final ScheduledExecutorService scheduler;
-        private final HttpClient httpClient = HttpClient.newHttpClient();
+
 
         private class CachedItem {
             final String response;
@@ -1569,27 +1568,37 @@ public class OneShotPanel extends PluginPanel
                 return null;
             }
 
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .GET()
+            Request request = new Request.Builder()
+                    .url(url)
+                    .get()
                     .build();
 
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            String body = response.body();
+            Call call = httpClient.newCall(request);
 
-            // Store in cache
-            cache.put(url, new CachedItem(body, now));
+            try (Response response = call.execute())
+            {
+                if (!response.isSuccessful())
+                {
+                    log.debug("HTTP error {} for {}", response.code(), url);
+                    return null;
+                }
 
-            return body;
+                ResponseBody body = response.body();
+                if (body == null)
+                {
+                    return null;
+                }
+
+                String responseBody = body.string();
+                cache.put(url, new CachedItem(responseBody, now));
+                return responseBody;
+            }
         }
 
         public void shutdown() {
             scheduler.shutdown();
         }
     }
-
-
-
 
 }
 
