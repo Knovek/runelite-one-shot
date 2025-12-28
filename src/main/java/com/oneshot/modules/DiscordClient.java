@@ -92,7 +92,6 @@ public class DiscordClient {
 
     public void sendLevelUp(Skill skill, int level) throws IOException
     {
-        if (partypete == null) return;
         log.debug(String.format("Leveled up %s:%d",skill.getName(),level));
         if (level != 99) return;
 
@@ -127,7 +126,6 @@ public class DiscordClient {
                         title,
                         Constants.DISCORD_LEVELS_COLOR,
                         playerName,
-                        null,
                         description,
                         fields,
                         screenshot,
@@ -143,7 +141,6 @@ public class DiscordClient {
 
     public void send200(Skill skill) throws IOException
     {
-        if (partypete == null) return;
         String description = "";
         String title = String.format("Achieved 200M XP in %s", skill.getName());
 
@@ -174,7 +171,6 @@ public class DiscordClient {
                         title,
                         Constants.DISCORD_LEVELS_COLOR,
                         playerName,
-                        null,
                         description,
                         fields,
                         screenshot,
@@ -189,7 +185,6 @@ public class DiscordClient {
     }
 
     public void sendQuest(String questText) throws IOException {
-        if (towncrier == null) return;
         // ---- Quest values ------------------------------------------------------
         int completedQuests = client.getVarbitValue(VarbitID.QUESTS_COMPLETED_COUNT);
         int totalQuests = client.getVarbitValue(VarbitID.QUESTS_TOTAL_COUNT);
@@ -207,7 +202,6 @@ public class DiscordClient {
             return;
 
         // ---- Static values -----------------------------------------------------
-        String username = null;
         String url = getWikiUrl(questName);
         String playerName = client.getLocalPlayer().getName();
         String description = String.format("[%s](%s)",questName,url);
@@ -252,7 +246,6 @@ public class DiscordClient {
                         title,
                         Constants.DISCORD_QUESTS_COLOR,
                         playerName,
-                        null,
                         description,
                         fields,
                         screenshot,
@@ -267,7 +260,6 @@ public class DiscordClient {
     }
 
     public void sendAchievementDiary(String areaStr, String tierStr) throws IOException {
-        if (towncrier == null) return;
         if (!Objects.equals(tierStr, "Elite")) return;
         // Capture client-thread-safe data first
         String playerName = client.getLocalPlayer().getName();
@@ -276,10 +268,6 @@ public class DiscordClient {
         String descriptionText = String.format("%s %s Diaries", areaStr, tierStr);
         String itemWikiUrl = getWikiUrl(String.format("%s Diary#%s", areaStr, tierStr));
         String description = String.format("[%s](%s)", descriptionText, itemWikiUrl);
-
-        List<DiscordField> fields = null;
-        String username = null;
-        String url = null;
 
         // ---- Rank icon -----------------------------------------------------
         byte[] rankIcon = getRankIcon(playerName);
@@ -307,9 +295,8 @@ public class DiscordClient {
                         title,
                         Constants.DISCORD_DIARIES_COLOR,
                         playerName,
-                        url,
                         description,
-                        fields,
+                        null,
                         screenshot,
                         rankIcon,
                         taskThumbnail
@@ -323,8 +310,8 @@ public class DiscordClient {
 
     public void sendCombatAchievement(String combatTier) throws IOException
     {
-        if (towncrier == null) return;
         List<String> allowedTiers = List.of("Elite","Master","Grandmaster");
+        log.debug(String.format("Combat Achievement: %s", allowedTiers));
         if (!allowedTiers.contains(combatTier)) return;
 
         String playerName = client.getLocalPlayer().getName();
@@ -333,10 +320,6 @@ public class DiscordClient {
         String title = combatTier + " Tier Rewards unlocked";
         String itemWikiUrl = Constants.WIKI_COMBAT_ACHIEVEMENTS_REWARDS;
         String description = String.format("[%s](%s)","Combat Achievement Rewards",itemWikiUrl);
-
-        List<DiscordField> fields = null;
-        String username = null;
-        String url = null;
 
         // ---- Rank icon -----------------------------------------------------
         byte[] rankIcon = getRankIcon(playerName);
@@ -360,9 +343,8 @@ public class DiscordClient {
                         title,
                         Constants.DISCORD_COMBAT_ACHIEVEMENTS_COLOR,
                         playerName,
-                        url,
                         description,
-                        fields,
+                        null,
                         screenshot,
                         rankIcon,
                         itemImageUrl
@@ -378,17 +360,12 @@ public class DiscordClient {
 
     public void sendPet(String itemName) throws IOException
     {
-        if (appreciator == null) return;
         String playerName = client.getLocalPlayer().getName();
 
         // ---- Text ----------------------------------------------------------
         String title = "New pet";
         String itemWikiUrl = getWikiUrl(itemName);
         String description = String.format("[%s](%s)",itemName,itemWikiUrl);
-
-        List<DiscordField> fields = null;
-        String username = null;
-        String url = null;
 
         // ---- Rank icon -----------------------------------------------------
         byte[] rankIcon = getRankIcon(playerName);
@@ -418,9 +395,8 @@ public class DiscordClient {
                         title,
                         Constants.DISCORD_PETS_COLOR,
                         playerName,
-                        url,
                         description,
-                        fields,
+                        null,
                         screenshot,
                         rankIcon,
                         itemImageUrl
@@ -477,9 +453,6 @@ public class DiscordClient {
             ));
         });
 
-        String username = null;
-        String url = null;
-
         // ---- Rank icon -----------------------------------------------------
         byte[] rankIcon = getRankIcon(playerName);
 
@@ -508,7 +481,6 @@ public class DiscordClient {
                         title,
                         Constants.DISCORD_LOOT_COLOR,
                         playerName,
-                        url,
                         description,
                         fields,
                         screenshot,
@@ -524,14 +496,11 @@ public class DiscordClient {
 
     public void sendDeath(String actorInteraction, CompletableFuture<Image> screenshotFuture) throws IOException
     {
-        if (death == null) return;
         String playerName = client.getLocalPlayer().getName();
 
         // ---- Text ----------------------------------------------------------
         String title = Objects.equals(actorInteraction, "") ?  playerName + " has died!" : playerName + " has died to " + actorInteraction + "!";
         String description = "";
-        String username = null;
-        String url = null;
 
         // ---- Fields --------------------------------------------------------
         List<DiscordField> fields = new ArrayList<>();
@@ -585,7 +554,6 @@ public class DiscordClient {
                             title,
                             Constants.DISCORD_DEATHS_COLOR,
                             playerName,
-                            url,
                             description,
                             fields,
                             screenshot,
@@ -604,7 +572,6 @@ public class DiscordClient {
                     title,
                     Constants.DISCORD_DEATHS_COLOR,
                     playerName,
-                    url,
                     description,
                     fields,
                     null,
@@ -849,7 +816,6 @@ public class DiscordClient {
             String title,
             Color color,
             @Nullable String authorName,
-            @Nullable String url,
             @Nullable String description,
             @Nullable List<DiscordField> fields,
             @Nullable byte[] screenshot,
@@ -864,7 +830,6 @@ public class DiscordClient {
                 .setFooter("One Shot Plugin", footerIcon, "footericon.png");
 
         if (description != null) embed.setDescription(description);
-        if (url != null) embed.setUrl(url);
         if (userIcon != null) embed.setAuthor(authorName, userIcon, "usericon.png");
         if (thumbnailBytes != null) embed.setThumbnail(thumbnailBytes, "thumb.png");
         if (screenshot != null) embed.setImage(screenshot, "screenshot.png");
@@ -891,7 +856,6 @@ public class DiscordClient {
             String title,
             Color color,
             @Nullable String authorName,
-            @Nullable String url,
             @Nullable String description,
             @Nullable List<DiscordField> fields,
             @Nullable byte[] screenshot,
@@ -907,7 +871,6 @@ public class DiscordClient {
                 .setFooter("One Shot Plugin", footerIcon, "footericon.png");
 
         if (description != null) embed.setDescription(description);
-        if (url != null) embed.setUrl(url);
         if (userIcon != null) embed.setAuthor(authorName, userIcon, "usericon.png");
         if (thumbnailUrl != null) embed.setThumbnail(thumbnailUrl);
         if (screenshot != null) embed.setImage(screenshot, "screenshot.png");
