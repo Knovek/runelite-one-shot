@@ -13,8 +13,9 @@ public interface OneShotConfig extends Config
             keyName = "version",
             position = 0,
             name = "version",
-            description = "version")
-    default String version() {return "v1.0.1"; }
+            description = "version",
+            hidden = true)
+    default String version() {return "v1.0.2"; }
 
     @ConfigSection(
             name = "Discord Announcements",
