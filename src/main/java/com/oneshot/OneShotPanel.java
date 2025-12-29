@@ -1186,11 +1186,12 @@ public class OneShotPanel extends PluginPanel
             JsonObject player = obj.getAsJsonObject("player");
             JsonObject data = obj.getAsJsonObject("data");
 
-            int rank = data.get("rank").getAsInt();
             String username = player.get("username").getAsString().replace("\u00A0", " ");
 
-            if (rank == -1) {
-                //log.debug("Rank -1 found at index {} ({}), stopping and cutting the tail", i, username);
+            if (
+                    (data.has("kills") && data.get("kills").getAsInt() == 0) ||
+                    (data.has("experience") && data.get("experience").getAsLong() == 0)
+            ) {
                 break; // stop processing the rest of the array
             }
 
