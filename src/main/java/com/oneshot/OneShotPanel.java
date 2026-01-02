@@ -51,6 +51,7 @@ public class OneShotPanel extends PluginPanel
     private static final Logger log = LoggerFactory.getLogger(OneShotPanel.class);
 
     private ModToolsPanel modToolsPanel;
+    private OneShotConfig config;
 
     private final Map<HiscoreSkill, JButton> skillButtons = new HashMap<>();
     private RateLimitedHttpCache rateLimitedHttpCache;
@@ -80,11 +81,12 @@ public class OneShotPanel extends PluginPanel
     private SpriteManager spriteManager;
     private String playerName;
 
-    public void init(Client client, ClientThread clientThread, ModToolsPanel modToolsPanel)
+    public void init(Client client, ClientThread clientThread, ModToolsPanel modToolsPanel, OneShotConfig config)
     {
         this.clientThread = clientThread;
         this.client = client;
         this.modToolsPanel = modToolsPanel;
+        this.config = config;
         loadFonts();
         buildIntroPanel();
         rateLimitedHttpCache = new RateLimitedHttpCache(20, 5);
@@ -1231,17 +1233,21 @@ public class OneShotPanel extends PluginPanel
             String display = allMembersDisplayNames.get(lower);
             ImageIcon icon = allMembersIcons.get(lower);
 
-            int level = isSkill ? ddata.get("level").getAsInt()
-                    : isBoss ? ddata.get("kills").getAsInt()
-                    : ddata.get("score").getAsInt();
-
             long xp = isSkill ? ddata.get("experience").getAsLong() : 0;
+
+            int stat = isSkill
+                    ? config.displayVirtualLevels() && !skillName.equals("overall")
+                        ? Experience.getLevelForXp((int) xp) // virtual level
+                        : ddata.get("level").getAsInt()      // real level
+                    : isBoss
+                        ? ddata.get("kills").getAsInt()      // bosses
+                        : ddata.get("score").getAsInt();     // minigames
 
             rows.add(new PlayerRow(
                     i + 1,
                     display,
                     icon,
-                    level,
+                    stat,
                     isSkill ? formatNumber(xp) : "",
                     i == highlightIndex
             ));
