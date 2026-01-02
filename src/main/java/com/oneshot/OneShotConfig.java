@@ -146,5 +146,21 @@ public interface OneShotConfig extends Config
         return true;
     }
 
+    @ConfigSection(
+            name = "Leaderboard Options",
+            description = "Customize how the leaderboards look",
+            position = 2
+    )
+    String LEADERBOARD_SECTION_OPTIONS = "Leaderboard Options";
+
+    @ConfigItem(
+            keyName = "displayVirtualLevels",
+            name = "Display Virtual Levels",
+            description = "Should virtual levels be displayed in the skills leaderboards?",
+            section = LEADERBOARD_SECTION_OPTIONS,
+            position = 1
+    )
+    default boolean displayVirtualLevels() { return true; }
+
 
 }
