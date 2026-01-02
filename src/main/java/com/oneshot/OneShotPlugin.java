@@ -125,7 +125,7 @@ public class OneShotPlugin extends Plugin
         {
             panel = injector.getInstance(OneShotPanel.class);
             modToolsPanel = injector.getInstance(ModToolsPanel.class);
-            panel.init(client, clientThread, modToolsPanel);
+            panel.init(client, clientThread, modToolsPanel, config);
 
             ClanChannel clan = client.getClanChannel();
             if (clan != null)
