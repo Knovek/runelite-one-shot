@@ -90,6 +90,7 @@ public class OneShotPlugin extends Plugin
     private boolean deathAwaitingVarbit = false;
     private CompletableFuture<Image> pendingScreenshot;
     private boolean hideChatForScreenshot;
+    private boolean hideSplitChatForScreenshot;
     private int screenshotDelayTicks;
 
     private volatile boolean levelsInitialized = false;
@@ -430,6 +431,11 @@ public class OneShotPlugin extends Plugin
                     client,
                     InterfaceID.Chatbox.CHATAREA
             );
+            hideSplitChatForScreenshot = hideWidget(
+                    privacyMode,
+                    client,
+                    InterfaceID.PmChat.CONTAINER
+            );
 
             pendingScreenshot = future;
             screenshotDelayTicks = delayTicks;
@@ -443,6 +449,7 @@ public class OneShotPlugin extends Plugin
             return false;
 
         Widget widget = client.getWidget(info);
+        log.debug(widget.getName());
         if (widget == null || widget.isHidden())
             return false;
 
@@ -608,6 +615,15 @@ public class OneShotPlugin extends Plugin
                             client,
                             clientThread,
                             InterfaceID.Chatbox.CHATAREA
+                    )
+            );
+
+            clientThread.invoke(() ->
+                    unhideWidget(
+                            hideSplitChatForScreenshot,
+                            client,
+                            clientThread,
+                            InterfaceID.PmChat.CONTAINER
                     )
             );
 

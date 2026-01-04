@@ -58,6 +58,7 @@ public class DiscordClient {
 
     private CompletableFuture<Image> pendingScreenshot;
     private boolean chatHiddenForScreenshot;
+    private boolean hideSplitChatForScreenshot;
     private int screenshotDelayTicks;
 
     private static final MediaType JSON_MEDIA = MediaType.get("application/json; charset=utf-8");
@@ -731,6 +732,11 @@ public class DiscordClient {
                     client,
                     InterfaceID.Chatbox.CHATAREA
             );
+            hideSplitChatForScreenshot = hideWidget(
+                    privacyMode,
+                    client,
+                    InterfaceID.PmChat.CONTAINER
+            );
 
             // STEP 2 — request render AFTER widgets are hidden
             drawManager.requestNextFrameListener(image ->
@@ -745,6 +751,12 @@ public class DiscordClient {
                             client,
                             clientThread,
                             InterfaceID.Chatbox.CHATAREA
+                    );
+                    unhideWidget(
+                            hideSplitChatForScreenshot,
+                            client,
+                            clientThread,
+                            InterfaceID.PmChat.CONTAINER
                     );
 
                     pendingScreenshot = null;
