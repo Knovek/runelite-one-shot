@@ -22,6 +22,7 @@ public class Constants {
 
     // Main Panel Buttons
     public static final String LINK_DISCORD = "https://www.discord.gg/one-shot";
+    public static final String LINK_DISCORD_API = "https://discord.com/api/invites/one-shot?with_counts=true";
     public static final String TIP_DISCORD = "Opens One Shot discord invitation on your browser";
     public static final String TIP_LEADERBOARDS = "Check One Shot leaderboards";
     public static final String TIP_ROLES = "Show clan roles";
