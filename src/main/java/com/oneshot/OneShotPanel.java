@@ -1080,10 +1080,8 @@ public class OneShotPanel extends PluginPanel
     private static JLabel getHelpText() {
         JLabel helpText = new JLabel(
                 "<html><div style='text-align:center; line-height:1.3'>" +
-                        "<b>Join our Discord server</b><br>" +
-                        "Get ranked with our tools<br>" +
-                        "Participate in events<br>" +
-                        "Meet the clan and discuss" +
+                        "<b>Rankings • Events • Discussion</b><br>" +
+                        "Join the clan community!" +
                         "</div></html>"
         );
 
