@@ -7,6 +7,7 @@ import com.oneshot.utils.Constants;
 import com.oneshot.utils.Icons;
 
 import java.awt.*;
+import java.awt.datatransfer.StringSelection;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
@@ -15,12 +16,14 @@ import java.io.InputStream;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.inject.Inject;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.text.StyleContext;
 
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.gameval.SpriteID;
 import net.runelite.api.Experience;
@@ -60,6 +63,17 @@ public class OneShotPanel extends PluginPanel
     JLabel intro_bottom_text = new JLabel("", SwingConstants.CENTER);
     JPanel panelMainContent = new JPanel();
 
+    private JTable currentTable;
+    private JScrollPane currentScroll;
+    private PlayerTableModel currentModel;
+    private JPanel skillViewRoot;
+
+    private JLabel pageLabel;
+    private JButton btnFirst, btnPrev, btnNext, btnLast, btnGoToPlayer;
+    private HiscoreSkill currentSkill;
+    private int currentPages;
+    private int currentHighlightPos;
+
     String playerRank;
 
     ArrayList<OneShotPlugin.OneShotMember> allMembersRanksInfo;
@@ -80,6 +94,8 @@ public class OneShotPanel extends PluginPanel
     @Inject
     private SpriteManager spriteManager;
     private String playerName;
+
+    private final AtomicInteger requestSeq = new AtomicInteger(0);
 
     public void init(Client client, ClientThread clientThread, ModToolsPanel modToolsPanel, OneShotConfig config)
     {
@@ -1020,18 +1036,171 @@ public class OneShotPanel extends PluginPanel
     }
 
 
-    private void buildDiscordPanel() {
-        LinkBrowser.browse(Constants.LINK_DISCORD);
-//        clientThread.invokeLater(() ->
-//        {
-//            client.addChatMessage(
-//                    ChatMessageType.GAMEMESSAGE,
-//                    "",
-//                    "You've completed enough Combat Achievement tasks to unlock Easy Tier rewards! You can now claim your rewards from Ghommal.",
-//                    null
-//            );
-//        });
+    private void buildDiscordPanel()
+    {
+        panelMainContent.removeAll();
+        isInInfoPanel = false;
+        final Color hoverColor = ColorScheme.DARKER_GRAY_HOVER_COLOR;
+        final Color pressedColor = ColorScheme.DARKER_GRAY_COLOR.brighter();
+
+        JPanel container = new JPanel();
+        container.setLayout(new BoxLayout(container, BoxLayout.Y_AXIS));
+
+        JPanel title = createTitlePanel("One Shot Discord");
+        title.setPreferredSize(new Dimension(PluginPanel.PANEL_WIDTH - 20, 24));
+        container.add(title);
+        container.add(Box.createVerticalStrut(8));
+
+        JLabel stats = new JLabel("Loading server stats…");
+        stats.setHorizontalAlignment(SwingConstants.CENTER);
+        stats.setAlignmentX(Component.CENTER_ALIGNMENT);
+        container.add(stats);
+        container.add(Box.createVerticalStrut(8));
+
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        buttons.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JButton joinDiscord = getJoinDiscord(pressedColor, hoverColor);
+        JButton copyInvite = getCopyInvite(pressedColor, hoverColor);
+        buttons.add(joinDiscord);
+        buttons.add(copyInvite);
+        container.add(buttons);
+        container.add(Box.createVerticalStrut(10));
+
+        JLabel helpText = getHelpText();
+        container.add(helpText);
+
+        panelMainContent.add(container);
+
+        populateDiscordCountsAsync(stats, title);
+
+        update();
     }
+
+    private static JLabel getHelpText() {
+        JLabel helpText = new JLabel(
+                "<html><div style='text-align:center; line-height:1.3'>" +
+                        "<b>Join our Discord server</b><br>" +
+                        "Get ranked with our tools<br>" +
+                        "Participate in events<br>" +
+                        "Meet the clan and discuss" +
+                        "</div></html>"
+        );
+
+        helpText.setAlignmentX(Component.CENTER_ALIGNMENT);
+        helpText.setHorizontalAlignment(SwingConstants.CENTER);
+        helpText.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        return helpText;
+    }
+
+    private JButton getCopyInvite(Color pressedColor, Color hoverColor) {
+        JButton copyInvite = new JButton("Copy Invite");
+        copyInvite.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+
+        copyInvite.addMouseListener(new MouseAdapter()
+        {
+            @Override public void mousePressed(MouseEvent e) {
+                copyInvite.setBackground(pressedColor);
+            }
+            @Override public void mouseReleased(MouseEvent e) {
+                copyToClipboard(Constants.LINK_DISCORD);
+                copyInvite.setBackground(hoverColor);
+            }
+            @Override public void mouseEntered(MouseEvent e) {
+                copyInvite.setBackground(hoverColor);
+                copyInvite.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            }
+            @Override public void mouseExited(MouseEvent e)  {
+                copyInvite.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+                copyInvite.setCursor(Cursor.getDefaultCursor());
+            }
+        });
+        return copyInvite;
+    }
+
+    private static JButton getJoinDiscord(Color pressedColor, Color hoverColor) {
+        JButton joinDiscord = new JButton("Join Discord");
+        joinDiscord.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+
+        joinDiscord.addMouseListener(new MouseAdapter()
+        {
+            @Override public void mousePressed(MouseEvent e) {
+                joinDiscord.setBackground(pressedColor);
+            }
+            @Override public void mouseReleased(MouseEvent e) {
+                LinkBrowser.browse(Constants.LINK_DISCORD);
+                joinDiscord.setBackground(hoverColor);
+            }
+            @Override public void mouseEntered(MouseEvent e) {
+                joinDiscord.setBackground(hoverColor);
+                joinDiscord.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            }
+            @Override public void mouseExited(MouseEvent e)  {
+                joinDiscord.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+                joinDiscord.setCursor(Cursor.getDefaultCursor());
+            }
+        });
+        return joinDiscord;
+    }
+
+    private void populateDiscordCountsAsync(JLabel statsLabel, JPanel titlePanel) {
+
+        SwingWorker<DiscordCounts, Void> worker = new SwingWorker<>() {
+
+            @Override
+            protected DiscordCounts doInBackground() throws Exception {
+                return fetchDiscordCounts();
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    DiscordCounts counts = get();
+
+                    if (counts == null) {
+                        statsLabel.setText("Discord stats unavailable");
+                        return;
+                    }
+
+                    statsLabel.setText(
+                            "<html><div style='text-align:center'>" +
+                                    "👥 "
+                                    + formatNumber(counts.members) + " members"
+                                    + NonBreakingSpaces(5) +
+                                    "<span style='color:#00ff00;'>⬤</span> "
+                                    + formatNumber(counts.online) + " online" +
+                                    "</div></html>"
+                    );
+
+                } catch (Exception e) {
+                    statsLabel.setText("Discord stats unavailable.");
+                    log.debug("Discord stats error", e);
+                }
+            }
+        };
+
+        worker.execute();
+    }
+
+    private String NonBreakingSpaces(int n)
+    {
+        return "&nbsp;".repeat(Math.max(0, n));
+    }
+
+    private void copyToClipboard(String text)
+    {
+        try
+        {
+            Toolkit.getDefaultToolkit()
+                    .getSystemClipboard()
+                    .setContents(new StringSelection(text), null);
+        }
+        catch (Exception ignored)
+        {
+            // ignored
+        }
+    }
+
 
     private void buildLeaderboardsPanel()
     {
@@ -1525,6 +1694,30 @@ public class OneShotPanel extends PluginPanel
         }
     }
 
+    private static class DiscordCounts {
+        final int members;
+        final int online;
+
+        DiscordCounts(int members, int online) {
+            this.members = members;
+            this.online = online;
+        }
+    }
+
+    private DiscordCounts fetchDiscordCounts() throws IOException, InterruptedException {
+        String response = rateLimitedHttpCache.fetch(Constants.LINK_DISCORD_API);
+        if (response == null) {
+            return null;
+        }
+
+        JsonParser jsonParser = new JsonParser();
+        JsonObject obj = jsonParser.parse(response).getAsJsonObject();
+
+        int members = obj.has("approximate_member_count") ? obj.get("approximate_member_count").getAsInt() : -1;
+        int online  = obj.has("approximate_presence_count") ? obj.get("approximate_presence_count").getAsInt() : -1;
+
+        return new DiscordCounts(members, online);
+    }
 
 
     public class RateLimitedHttpCache {
