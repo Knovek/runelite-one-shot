@@ -21,9 +21,9 @@ import javax.inject.Inject;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.TableCellRenderer;
 import javax.swing.text.StyleContext;
 
-import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.gameval.SpriteID;
 import net.runelite.api.Experience;
@@ -449,6 +449,95 @@ public class OneShotPanel extends PluginPanel
         return container;
     }
 
+    private JPanel buildTopChartsSkeleton()
+    {
+        JPanel container = new JPanel();
+        container.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
+        container.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        container.setLayout(new BoxLayout(container, BoxLayout.Y_AXIS));
+
+        JPanel title = createTitlePanel("Top players Skills and KCs");
+        container.add(title);
+
+        JPanel statsPanel = new JPanel();
+        statsPanel.setBorder(BorderFactory.createLineBorder(ColorScheme.MEDIUM_GRAY_COLOR, 1));
+        statsPanel.setLayout(new GridLayout(8, 3));
+        statsPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+
+        skillButtons.clear();
+
+        for (HiscoreSkill skill : SKILLS)
+        {
+            statsPanel.add(makeHiscorePanel(skill)); // buttons show "--"
+        }
+        container.add(statsPanel);
+
+        JPanel totalPanel = new JPanel();
+        totalPanel.setBorder(BorderFactory.createLineBorder(ColorScheme.MEDIUM_GRAY_COLOR, 1));
+        totalPanel.setLayout(new GridLayout(1, 1));
+        totalPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        totalPanel.add(makeHiscorePanel(OVERALL));
+        container.add(totalPanel);
+
+        JPanel minigamePanel = new JPanel();
+        minigamePanel.setBorder(BorderFactory.createLineBorder(ColorScheme.MEDIUM_GRAY_COLOR, 1));
+        minigamePanel.setLayout(new GridLayout(1, 2));
+        minigamePanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        for (HiscoreSkill skill : ACTIVITIES)
+        {
+            minigamePanel.add(makeHiscorePanel(skill));
+        }
+        container.add(minigamePanel);
+
+        JPanel bossPanel = new JPanel();
+        bossPanel.setBorder(BorderFactory.createLineBorder(ColorScheme.MEDIUM_GRAY_COLOR, 1));
+        bossPanel.setLayout(new GridLayout(0, 3));
+        bossPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+        for (HiscoreSkill skill : BOSSES)
+        {
+            bossPanel.add(makeHiscorePanel(skill));
+        }
+        container.add(bossPanel);
+
+        return container;
+    }
+
+    private void fetchAndPopulateTopChartsAsync()
+    {
+        SwingWorker<JsonElement, Void> worker = new SwingWorker<>()
+        {
+            @Override
+            protected JsonElement doInBackground() throws Exception
+            {
+                String response = rateLimitedHttpCache.fetch(Constants.URI_WOM_LEADERS);
+                if (response == null) return null;
+
+                JsonParser jsonParser = new JsonParser();
+                JsonElement jsonElement = jsonParser.parse(response);
+                return jsonElement.getAsJsonObject().get(Constants.URI_WOM_LEADERS_OBJECT);
+            }
+
+            @Override
+            protected void done()
+            {
+                try
+                {
+                    JsonElement metricLeaders = get();
+                    if (metricLeaders == null) return;
+
+                    populateMetricLeadersAsync(metricLeaders); // you already wrote this 👍
+                }
+                catch (Exception e)
+                {
+                    log.error(e.getMessage());
+                }
+            }
+        };
+
+        worker.execute();
+    }
+
+
     private void buildTopChartsAsync() {
 
         SwingWorker<JPanel, Void> worker = new SwingWorker<>() {
@@ -471,7 +560,7 @@ public class OneShotPanel extends PluginPanel
                     panelMainContent.repaint();
 
                 } catch (Exception ex) {
-                    ex.printStackTrace();
+                    log.error(ex.getMessage());
                 }
             }
         };
@@ -518,7 +607,7 @@ public class OneShotPanel extends PluginPanel
                     }
 
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    log.error(e.getMessage());
                 }
             }
         };
@@ -725,12 +814,33 @@ public class OneShotPanel extends PluginPanel
         return skillPanel;
     }
 
+    private void showLoadingIfFirstOpenForSkill(HiscoreSkill skill)
+    {
+        boolean firstOpenForThisSkill = (skillViewRoot == null);
+
+        if (!firstOpenForThisSkill)
+        {
+            return;
+        }
+
+        panelMainContent.removeAll();
+        panelMainContent.setLayout(new BorderLayout());
+
+        JPanel loading = new JPanel(new BorderLayout());
+        loading.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+        JLabel loadingText = new JLabel("Loading...", SwingConstants.CENTER);
+        loading.add(loadingText, BorderLayout.CENTER);
+
+        panelMainContent.add(loading, BorderLayout.CENTER);
+        panelMainContent.revalidate();
+        panelMainContent.repaint();
+    }
+
+
     private void buildSkillPlayersAsync(HiscoreSkill skill, int pageNumber) {
 
-        // STEP 1: show a temporary loading indicator
-        panelMainContent.removeAll();
-        panelMainContent.add(new JLabel("Loading...", SwingConstants.CENTER));
-        update(); // revalidate+repaint
+        SwingUtilities.invokeLater(() -> showLoadingIfFirstOpenForSkill(skill));
 
         SwingWorker<JsonArray, Void> worker = new SwingWorker<>() {
 
@@ -748,7 +858,7 @@ public class OneShotPanel extends PluginPanel
                     buildSkillPlayersUI(skill, pageNumber, arr);
 
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    log.error(e.getMessage());
                     buildSkillPlayersUI(skill, pageNumber, null);
                 }
             }
@@ -758,10 +868,11 @@ public class OneShotPanel extends PluginPanel
     }
 
     private void buildSkillPlayersUI(HiscoreSkill skill, int pageNumber, JsonArray arr) {
-        panelMainContent.removeAll();
+
 
         if (arr == null)
         {
+            panelMainContent.removeAll();
             JPanel empty = new JPanel();
             empty.setLayout(new BoxLayout(empty, BoxLayout.Y_AXIS));
             empty.add(goBackButton());
@@ -780,6 +891,7 @@ public class OneShotPanel extends PluginPanel
         }
 
         if (arr.size() == 0) {
+            panelMainContent.removeAll();
             JPanel empty = new JPanel();
             empty.setLayout(new BoxLayout(empty, BoxLayout.Y_AXIS));
             empty.add(goBackButton());
@@ -792,90 +904,250 @@ public class OneShotPanel extends PluginPanel
             update();
             return;
         }
-
         String skillName = normalizeSkillName(skill);
+
+        boolean isSkill = SKILLS.contains(skill) || skillName.equals("overall");
+        boolean isBoss  = BOSSES.contains(skill);
 
         int nPages = (int) Math.ceil(arr.size() / 10.0);
         int playerIndex = (pageNumber - 1) * 10;
         int playerLimit = Math.min(10, arr.size() - playerIndex);
-
         int highlightPosition = findPlayerPosition(arr, this.playerName);
+        currentHighlightPos = highlightPosition;
 
-        JPanel container = new JPanel(new GridBagLayout());
-        GridBagConstraints c = createDefaultGBC();
+        // 1) Make sure the UI exists (build once)
+        ensureSkillViewBuilt(skill, isSkill, isBoss);
+
+        // 2) Build just the rows for this page
+        List<PlayerRow> rows = new ArrayList<>();
+        for (int i = playerIndex; i < playerIndex + playerLimit && i < arr.size(); i++) {
+            JsonObject entry = arr.get(i).getAsJsonObject();
+            JsonObject pdata = entry.getAsJsonObject("player");
+            JsonObject ddata = entry.getAsJsonObject("data");
+
+            String lower = pdata.get("username").getAsString().replace("\u00A0", " ");
+            String display = allMembersDisplayNames.get(lower);
+            ImageIcon icon = allMembersIcons.get(lower);
+
+            long xp = isSkill && ddata.has("experience") ? ddata.get("experience").getAsLong() : -1;
+            if (xp < 0) xp = 0;
+
+            int stat;
+            if (isSkill)
+            {
+                if (config.displayVirtualLevels() && !skillName.equals("overall"))
+                {
+                    // Experience.getLevelForXp expects non-negative
+                    stat = Experience.getLevelForXp((int) Math.min(Integer.MAX_VALUE, xp));
+                }
+                else
+                {
+                    // level may also be -1
+                    stat = ddata.has("level") ? Math.max(0, ddata.get("level").getAsInt()) : 0;
+                }
+            }
+            else if (isBoss)
+            {
+                stat = ddata.has("kills") ? Math.max(0, ddata.get("kills").getAsInt()) : 0;
+            }
+            else
+            {
+                stat = ddata.has("score") ? Math.max(0, ddata.get("score").getAsInt()) : 0;
+            }
+
+            String expStr = isSkill ? (xp > 0 ? formatNumber(xp) : "--") : "";
+
+            rows.add(new PlayerRow(
+                    i + 1,
+                    display,
+                    icon,
+                    stat,
+                    expStr,
+                    i == highlightPosition
+            ));
+        }
+
+        // 3) Update model in-place (NO removeAll, NO new JTable)
+        currentModel.setRows(rows);
+        refreshTableSizing();
+
+        // 4) Update pager state
+        currentPages = nPages;
+        pageLabel.setText(String.valueOf(pageNumber));
+
+        int playerPage = (highlightPosition / 10) + 1;
+
+        setNavEnabled(btnFirst, pageNumber > 1);
+        setNavEnabled(btnPrev,  pageNumber > 1);
+        setNavEnabled(btnNext,  pageNumber < nPages);
+        setNavEnabled(btnLast,  pageNumber < nPages);
 
 
-        // Add skill header
-        addHeader(container, c, skill);
+        boolean enableGoToButton = (highlightPosition != -1) && (pageNumber != playerPage);
+        setNavEnabled(btnGoToPlayer, enableGoToButton);
 
-        JComponent table = buildPlayerTable(
-                arr, skill, skillName,
-                playerIndex, playerLimit, highlightPosition);
+        currentTable.repaint();
+    }
 
-        container.add(table, c);
-        c.gridy++;
+    private void refreshTableSizing()
+    {
+        if (currentTable == null || currentScroll == null) return;
 
-        c.fill = GridBagConstraints.HORIZONTAL;
-        c.weightx = 1;
-        c.weighty = 0;
-        container.add(
-                buildSkillPlayersScroller(skill, pageNumber, nPages, highlightPosition),
-                c
-        );
-        c.gridy++;
+        int rows = currentTable.getRowCount();
+        int rowH = currentTable.getRowHeight();
 
-        panelMainContent.add(container);
-        update();
+        // Height to fit rows
+        int prefH = Math.max(rowH * rows, rowH); // at least 1 row
+        int prefW = panelMainContent.getWidth() > 0 ? panelMainContent.getWidth() : PluginPanel.PANEL_WIDTH;
+
+        currentTable.setPreferredScrollableViewportSize(new Dimension(prefW, prefH));
+
+        // Make sure Swing recalculates
+        currentTable.revalidate();
+        currentScroll.revalidate();
+        skillViewRoot.revalidate();
+        skillViewRoot.repaint();
     }
 
 
+    private void ensureSkillViewBuilt(HiscoreSkill skill, boolean isSkill, boolean isBoss) {
+        if (skillViewRoot != null && currentSkill == skill) {
+            return;
+        }
 
-    private JPanel buildSkillPlayersScroller(HiscoreSkill skill, int currentPage, int nPages, int playerPosition) {
+        currentSkill = skill;
 
-        JPanel container = new JPanel(new GridBagLayout());
+        // Root container
+        skillViewRoot = new JPanel(new BorderLayout());
+        skillViewRoot.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
-        GridBagConstraints c = createDefaultGBC();
-//        log.debug(String.valueOf(playerPosition));
+        /* ---------------- Header ---------------- */
 
-        int playerPage = (playerPosition / 10) + 1; // each page shows 10 players
+        JPanel header = new JPanel();
+        header.setLayout(new BoxLayout(header, BoxLayout.Y_AXIS));
+        header.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-        // Navigation actions
-        Runnable goFirst = () -> safeBuildSkillPlayers(skill, 1);
-        Runnable goPrev  = () -> safeBuildSkillPlayers(skill, currentPage - 1);
-        Runnable goNext  = () -> safeBuildSkillPlayers(skill, currentPage + 1);
-        Runnable goLast  = () -> safeBuildSkillPlayers(skill, nPages);
-        Runnable gotoPlayer  = () -> safeBuildSkillPlayers(skill, playerPage);
+        /* --- Top row: Go Back (left aligned) --- */
+        JPanel backRow = new JPanel(new BorderLayout());
+        backRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        backRow.add(goBackButton(), BorderLayout.WEST);
 
-        // Create the navigation buttons
-        JButton btnFirst = buildButton("<<", currentPage > 1, 35, 20, goFirst);
-        JButton btnPrev  = buildButton("<",  currentPage > 1, 35, 20, goPrev);
-        JButton btnNext  = buildButton(">",  currentPage < nPages, 35, 20, goNext);
-        JButton btnLast  = buildButton(">>", currentPage < nPages, 35, 20, goLast);
-        JButton btnGoToPlayer = buildButton("Go to my position", currentPage != playerPage && playerPosition != -1, 0, 20, gotoPlayer);
+        /* --- Bottom row: Skill header (centered) --- */
+        JPanel skillHeaderRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
+        skillHeaderRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        skillHeaderRow.add(buildSkillHeader(skill));
 
-        JLabel pageLabel = new JLabel(String.valueOf(currentPage), SwingConstants.CENTER);
+        header.add(backRow);
+        header.add(skillHeaderRow);
 
-        // Layout
-        container.add(btnFirst, c);
-        c.gridx++;
-        container.add(btnPrev, c);
-        c.gridx++;
-        container.add(pageLabel, c);
-        c.gridx++;
-        container.add(btnNext, c);
-        c.gridx++;
-        container.add(btnLast, c);
+        skillViewRoot.add(header, BorderLayout.NORTH);
 
-        // -----------------------------
-        // Add "Go to Player" button below
-        c.gridx = 0;
-        c.gridy++;
-        c.gridwidth = 5;
-        c.fill = GridBagConstraints.HORIZONTAL;
+        /* ---------------- Table ---------------- */
 
-        container.add(btnGoToPlayer, c);
+        currentModel = new PlayerTableModel(new ArrayList<>(), isSkill, isBoss);
 
-        return container;
+        currentTable = new JTable(currentModel)
+        {
+            @Override
+            public Component prepareRenderer(TableCellRenderer r, int row, int col)
+            {
+                Component c = super.prepareRenderer(r, row, col);
+                if (!isRowSelected(row))
+                {
+                    c.setBackground(row % 2 == 0
+                            ? new Color(26, 26, 26)
+                            : new Color(32, 32, 32));
+                }
+                return c;
+            }
+        };
+
+        styleTable(currentTable, isSkill);
+
+        currentScroll = new JScrollPane(currentTable);
+        currentScroll.setBorder(null);
+
+        skillViewRoot.add(currentScroll, BorderLayout.CENTER);
+
+        /* ---------------- Pager ---------------- */
+
+        JPanel pager = new JPanel();
+        pager.setLayout(new BoxLayout(pager, BoxLayout.Y_AXIS));
+        pager.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+        // Navigation row
+        JPanel navRow = new JPanel(new GridLayout(1, 5, 4, 0));
+        navRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
+
+        btnFirst = buildNavButton("<<", () -> safeBuildSkillPlayers(skill, 1));
+        btnPrev  = buildNavButton("<",  () -> safeBuildSkillPlayers(skill, Math.max(1, getCurrentPage() - 1)));
+
+            pageLabel = new JLabel("1", SwingConstants.CENTER);
+            pageLabel.setForeground(Color.WHITE);
+
+        btnNext  = buildNavButton(">",  () -> safeBuildSkillPlayers(skill, getCurrentPage() + 1));
+        btnLast  = buildNavButton(">>", () -> safeBuildSkillPlayers(skill, currentPages));
+
+        navRow.add(btnFirst);
+        navRow.add(btnPrev);
+        navRow.add(pageLabel);
+        navRow.add(btnNext);
+        navRow.add(btnLast);
+
+        // Go-to-player button
+        btnGoToPlayer = buildButton(
+                "Go to my position",
+                0, 20,
+                () -> {
+                    if (currentHighlightPos < 0) return;
+                    int pPage = (currentHighlightPos / 10) + 1;
+                    safeBuildSkillPlayers(skill, pPage);
+                }
+        );
+
+        btnGoToPlayer.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btnGoToPlayer.setMaximumSize(
+                new Dimension(Integer.MAX_VALUE, 20)
+        );
+
+        pager.add(Box.createVerticalStrut(4));
+        pager.add(navRow);
+        pager.add(Box.createVerticalStrut(4));
+        pager.add(btnGoToPlayer);
+        pager.add(Box.createVerticalStrut(4));
+
+        skillViewRoot.add(pager, BorderLayout.SOUTH);
+
+        /* ---------------- Attach ---------------- */
+
+        panelMainContent.removeAll();
+        panelMainContent.setLayout(new BorderLayout());
+        panelMainContent.add(skillViewRoot, BorderLayout.CENTER);
+        panelMainContent.revalidate();
+        panelMainContent.repaint();
+    }
+
+    private JButton buildNavButton(String text, Runnable callback)
+    {
+        JButton b = buildButton(text, 35, 20, callback);
+
+        // Remove extra padding that makes sizes look inconsistent
+        b.setMargin(new Insets(0, 0, 0, 0));
+        b.setHorizontalAlignment(SwingConstants.CENTER);
+
+        // Lock sizing so layout can't distort it
+        Dimension d = new Dimension(35, 20);
+        b.setPreferredSize(d);
+        b.setMinimumSize(d);
+        b.setMaximumSize(d);
+
+        return b;
+    }
+
+
+    private int getCurrentPage() {
+        try { return Integer.parseInt(pageLabel.getText()); }
+        catch (Exception ignored) { return 1; }
     }
 
     private void safeBuildSkillPlayers(HiscoreSkill skill, int page) {
@@ -885,61 +1157,53 @@ public class OneShotPanel extends PluginPanel
     }
 
 
-    private JButton buildButton(String displayText, boolean enableClick, int width, int height, Runnable callback)
+    private JButton buildButton(String displayText, int width, int height, Runnable callback)
     {
         final Color hoverColor = ColorScheme.DARKER_GRAY_HOVER_COLOR;
         final Color pressedColor = ColorScheme.DARKER_GRAY_COLOR.brighter();
-        final Color defaultColor = enableClick ? ColorScheme.DARKER_GRAY_COLOR : ColorScheme.DARK_GRAY_COLOR;
+        final Color defaultColor = ColorScheme.DARKER_GRAY_COLOR;
 
         JButton button = new JButton(displayText);
         button.setPreferredSize(new Dimension(width, height));
         button.setBackground(defaultColor);
-        button.setBorderPainted(enableClick);
+        button.setBorderPainted(false);
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (!button.isEnabled()) return;
+                button.setBackground(pressedColor);
+            }
 
-        if (enableClick) {
-            button.addMouseListener(new MouseAdapter() {
-                @Override
-                public void mousePressed(MouseEvent e) {
-                    button.setBackground(pressedColor);
-                }
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                if (!button.isEnabled()) return;
+                callback.run();
+                button.setBackground(hoverColor);
+            }
 
-                @Override
-                public void mouseReleased(MouseEvent e) {
-                    callback.run();
-                    button.setBackground(hoverColor);
-                }
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                if (!button.isEnabled()) return;
+                button.setBackground(hoverColor);
+                button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            }
 
-                @Override
-                public void mouseEntered(MouseEvent e) {
-                    button.setBackground(hoverColor);
-                    button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-                }
-
-                @Override
-                public void mouseExited(MouseEvent e) {
-                    button.setBackground(defaultColor);
-                    button.setCursor(Cursor.getDefaultCursor());
-                }
-            });
-        } else {
-            button.setForeground(defaultColor);
-            // Disabled button: just ensure consistent color, no hover effects needed
-            button.addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseEntered(MouseEvent e) { button.setBackground(defaultColor); }
-                @Override
-                public void mouseExited(MouseEvent e) { button.setBackground(defaultColor); }
-                @Override
-                public void mousePressed(MouseEvent e) { button.setBackground(defaultColor); }
-                @Override
-                public void mouseReleased(MouseEvent e) { button.setBackground(defaultColor); }
-            });
-            button.setRolloverEnabled(false);
-            button.setFocusPainted(false);
-//            button.setEnabled(false);
-        }
+            @Override
+            public void mouseExited(MouseEvent e) {
+                if (!button.isEnabled()) return;
+                button.setBackground(defaultColor);
+                button.setCursor(Cursor.getDefaultCursor());
+            }
+        });
 
         return button;
+    }
+
+    private void setNavEnabled(JButton b, boolean enabled)
+    {
+        b.setEnabled(enabled);
+        b.setBackground(enabled ? ColorScheme.DARKER_GRAY_COLOR : ColorScheme.DARK_GRAY_COLOR);
+        b.setForeground(Color.WHITE); // keep consistent; disabled uses disabledTextColor
     }
 
     private int findPlayerPosition(JsonArray jsonArray, String playerName){
@@ -993,7 +1257,7 @@ public class OneShotPanel extends PluginPanel
         final Color pressedColor = ColorScheme.DARKER_GRAY_COLOR.brighter();
 
         // Optional: smaller preferred width to reduce horizontal space
-        goBack.setPreferredSize(new Dimension(80, 20));
+        goBack.setPreferredSize(new Dimension(90, 20));
         goBack.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
         goBack.addMouseListener(new MouseAdapter() {
@@ -1004,6 +1268,13 @@ public class OneShotPanel extends PluginPanel
 
             @Override
             public void mouseReleased(MouseEvent e) {
+                // reset cached skill view so clicking again rebuilds/reattaches
+                skillViewRoot = null;
+                currentSkill = null;
+                currentTable = null;
+                currentScroll = null;
+                currentModel = null;
+
                 panelMainContent.removeAll();
                 buildTopChartsAsync();
                 goBack.setBackground(hoverColor);
@@ -1204,14 +1475,17 @@ public class OneShotPanel extends PluginPanel
     {
         isInInfoPanel = false;
         panelMainContent.removeAll();
-        try {
-            buildTopChartsAsync();
-        } catch (NullPointerException e)
-        {
-            panelMainContent.add(new JLabel("Something went wrong"));
-            log.error(e.getMessage());
-        }
-        update();
+        panelMainContent.setLayout(new BorderLayout());
+
+        // 1) show UI immediately (unpopulated)
+        JPanel skeleton = buildTopChartsSkeleton();
+        panelMainContent.add(skeleton, BorderLayout.CENTER);
+
+        panelMainContent.revalidate();
+        panelMainContent.repaint();
+
+        // 2) populate afterwards
+        fetchAndPopulateTopChartsAsync();
     }
 
     private void buildModToolsPanel() {
@@ -1220,11 +1494,6 @@ public class OneShotPanel extends PluginPanel
         panelMainContent.add(modToolsPanel);
 
         update();
-    }
-
-    private static JButton buildButton(ImageIcon icon, Runnable callback)
-    {
-        return buildButton(icon, callback, "");
     }
 
     private static JButton buildButton(ImageIcon icon, Runnable callback, String tip)
@@ -1358,8 +1627,8 @@ public class OneShotPanel extends PluginPanel
             String username = player.get("username").getAsString().replace("\u00A0", " ");
 
             if (
-                    (data.has("kills") && data.get("kills").getAsInt() == 0) ||
-                    (data.has("experience") && data.get("experience").getAsLong() == 0)
+                    (data.has("kills") && data.get("kills").getAsInt() <= 0) ||
+                    (data.has("experience") && data.get("experience").getAsLong() <= 0)
             ) {
                 break; // stop processing the rest of the array
             }
@@ -1483,6 +1752,25 @@ public class OneShotPanel extends PluginPanel
         }
     }
 
+    private JLabel buildAutoSizedTitle(String text, int maxWidth, float startSize) {
+        JLabel label = new JLabel(text);
+        label.setForeground(Color.WHITE);
+
+        Font base = FontManager.getRunescapeBoldFont().deriveFont(startSize);
+        FontMetrics fm = label.getFontMetrics(base);
+
+        float size = startSize;
+        while (fm.stringWidth(text) > maxWidth && size > 8f) {
+            size -= 1f;
+            base = base.deriveFont(size);
+            fm = label.getFontMetrics(base);
+        }
+
+        label.setFont(base);
+        return label;
+    }
+
+
     private JPanel buildSkillHeader(HiscoreSkill skill) {
         JPanel header = new JPanel() {
             @Override
@@ -1503,34 +1791,7 @@ public class OneShotPanel extends PluginPanel
                     iconLabel.setIcon(new ImageIcon(scaled));
                 })
         );
-
-        // Skill name (with shrinking only if needed)
-        final float originalFontSize = 18f;
-        JLabel nameLabel = new JLabel(skill.getName()) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2d = (Graphics2D) g;
-                Font font = getFont().deriveFont(originalFontSize);
-                FontMetrics fm = g2d.getFontMetrics(font);
-
-                int availableWidth = 180; // small padding
-                String text = getText();
-
-                // Only shrink if text width exceeds available width
-                if (fm.stringWidth(text) > availableWidth) {
-                    while (fm.stringWidth(text) > availableWidth && font.getSize() > 8) {
-                        font = font.deriveFont((float) (font.getSize() - 1));
-                        fm = g2d.getFontMetrics(font);
-                    }
-                }
-
-                setFont(font);
-                super.paintComponent(g);
-            }
-        };
-
-        nameLabel.setForeground(Color.WHITE);
-        nameLabel.setFont(FontManager.getRunescapeBoldFont().deriveFont(originalFontSize));
+        JLabel nameLabel = buildAutoSizedTitle(skill.getName(), 180, 18f);
 
         header.add(iconLabel);
         header.add(nameLabel);
@@ -1542,7 +1803,7 @@ public class OneShotPanel extends PluginPanel
 
     private static class PlayerTableModel extends javax.swing.table.AbstractTableModel {
 
-        private final List<PlayerRow> rows;
+        private List<PlayerRow> rows;
         private final String[] cols;
 
         PlayerTableModel(List<PlayerRow> rows, boolean skill, boolean boss)
@@ -1552,6 +1813,15 @@ public class OneShotPanel extends PluginPanel
                     ? new String[]{"#", "Player", "Level", "Exp"}
                     : boss ? new String[]{"#", "Player", "Kills"}
                     : new String[]{"#", "Player", "Total"};
+        }
+
+        void setRows(List<PlayerRow> newRows) {
+            this.rows = newRows;
+            fireTableDataChanged();
+        }
+
+        List<PlayerRow> getRows() {
+            return rows;
         }
 
         @Override public int getRowCount() { return rows.size(); }
@@ -1626,7 +1896,7 @@ public class OneShotPanel extends PluginPanel
                         super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 
                         PlayerTableModel model = (PlayerTableModel) table.getModel();
-                        PlayerRow playerRow = model.rows.get(row);
+                        PlayerRow playerRow = model.getRows().get(row);
 
                         if (playerRow.highlight) {
                             setForeground(Color.GREEN);
