@@ -78,6 +78,11 @@ public class OneShotPlugin extends Plugin
     @Inject
     private DiscordClient discordClient;
 
+    @Inject
+    private ConfigManager configManager;
+
+    private static final String CURRENT_VERSION = "v1.0.3"; // bump when releasing
+
     private boolean isMember = false;
     private boolean isModerator = false;
 
@@ -214,6 +219,36 @@ public class OneShotPlugin extends Plugin
                 getMembersDisplayName()
         );
     }
+
+    private void sendGameMessage(String msg)
+    {
+        clientThread.invoke(() ->
+                client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", msg, null)
+        );
+    }
+
+
+    private void checkAndAnnouncePluginUpdate()
+    {
+        // Read what is actually stored (may be null if never set)
+        String stored = configManager.getConfiguration(OneShotConfig.GROUP, "version");
+
+        // If nothing stored yet, treat as "first run"
+        if (stored == null)
+        {
+            configManager.setConfiguration(OneShotConfig.GROUP, "version", CURRENT_VERSION);
+            return;
+        }
+
+        if (!CURRENT_VERSION.equals(stored))
+        {
+            sendGameMessage("One Shot updated to " + CURRENT_VERSION + "!");
+
+            // Persist so it doesn't spam next login
+            configManager.setConfiguration(OneShotConfig.GROUP, "version", CURRENT_VERSION);
+        }
+    }
+
 
 
     @Subscribe
@@ -649,6 +684,8 @@ public class OneShotPlugin extends Plugin
             ticksSinceLogin = 0;
             clientThread.invoke(this::initLevels);
             clientThread.invoke(this::initDiaries);
+
+            checkAndAnnouncePluginUpdate();
         }
     }
 
