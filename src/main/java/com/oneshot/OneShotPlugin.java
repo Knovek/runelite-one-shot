@@ -123,8 +123,7 @@ public class OneShotPlugin extends Plugin
     }
 
     @Override
-    protected void startUp() throws Exception
-    {
+    protected void startUp() {
         log.debug("Startup");
 
         clientThread.invoke(() ->
@@ -153,15 +152,18 @@ public class OneShotPlugin extends Plugin
                     if (moderator)
                         modTools.init(modToolsPanel);
 
-                    panel.buildMainPanel(
-                            moderator,
-                            client.getLocalPlayer().getName(),
-                            mapRankTitle(clanTitle),
-                            getRankIcon(clanTitle),
-                            getAllMembersInfo(),
-                            getMembersIcons(),
-                            getMembersDisplayName()
-                    );
+                    try {
+                        panel.buildMainPanel(
+                                moderator,
+                                client.getLocalPlayer().getName(),
+                                mapRankTitle(clanTitle),
+                                getAllMembersInfo(),
+                                getMembersIcons(),
+                                getMembersDisplayName()
+                        );
+                    } catch (IOException | InterruptedException e) {
+                        log.error(e.getMessage());
+                    }
                 }
             }
 
@@ -181,8 +183,7 @@ public class OneShotPlugin extends Plugin
 
 
     @Override
-	protected void shutDown() throws Exception
-	{
+	protected void shutDown() {
         log.debug("Shutdown");
         panel.deinit();
         clientToolbar.removeNavigation(navButton);
@@ -213,7 +214,6 @@ public class OneShotPlugin extends Plugin
                 isModerator,
                 client.getLocalPlayer().getName(),
                 mapRankTitle(title),
-                getRankIcon(title),
                 getAllMembersInfo(),
                 getMembersIcons(),
                 getMembersDisplayName()
@@ -265,8 +265,7 @@ public class OneShotPlugin extends Plugin
 
 
     @Subscribe
-    public void onClanChannelChanged(ClanChannelChanged clanChannelChanged)
-    {
+    public void onClanChannelChanged(ClanChannelChanged clanChannelChanged) throws IOException, InterruptedException {
         ClanChannel channel = clanChannelChanged.getClanChannel();
 
         if (channel == null)
@@ -318,7 +317,6 @@ public class OneShotPlugin extends Plugin
                 isModerator,
                 playerName,
                 mapRankTitle(title),
-                getRankIcon(title),
                 getAllMembersInfo(),
                 getMembersIcons(),
                 getMembersDisplayName()
@@ -606,7 +604,6 @@ public class OneShotPlugin extends Plugin
                     nowModerator,
                     client.getLocalPlayer().getName(),
                     newRankName,
-                    getRankIcon(title),
                     getAllMembersInfo(),
                     getMembersIcons(),
                     getMembersDisplayName()
@@ -816,9 +813,16 @@ public class OneShotPlugin extends Plugin
             return;
         }
 
+        int totalLevel = client.getTotalLevel();
+
         // Check normal skill level up
-        if (virtualLevel > previousLevel)
+        if (virtualLevel > previousLevel && totalLevel == Constants.MAX_TOTAL_LEVEL)
+        {
+            discordClient.sendLevelMaxed(totalLevel);
+        } else if (virtualLevel > previousLevel) {
             discordClient.sendLevelUp(skill, virtualLevel);
+        }
+
 
         // Check if xp milestone reached
         if (level >= MAX_REAL_LEVEL && xp > previousXp) {
@@ -849,8 +853,8 @@ public class OneShotPlugin extends Plugin
 
     private ArrayList<OneShotMember> getAllMembersInfo() {
 
-        ArrayList<OneShotMember> oneShotMembers = new ArrayList<OneShotMember>();
-        ArrayList<Integer> tmpIndexList = new ArrayList<Integer>();
+        ArrayList<OneShotMember> oneShotMembers = new ArrayList<>();
+        ArrayList<Integer> tmpIndexList = new ArrayList<>();
 
         // checks all members offline and online
         ClanSettings clanSettings = client.getClanSettings();
@@ -940,7 +944,7 @@ public class OneShotPlugin extends Plugin
 
     private Map<String, ImageIcon> getMembersIcons()
     {
-        Map<String, ImageIcon> Members = new HashMap<String, ImageIcon>();
+        Map<String, ImageIcon> Members = new HashMap<>();
 
         ClanSettings clanSettings = client.getClanSettings();
         assert clanSettings != null;
@@ -958,7 +962,7 @@ public class OneShotPlugin extends Plugin
 
     private Map<String, String> getMembersDisplayName()
     {
-        Map<String, String> Members = new HashMap<String, String>();
+        Map<String, String> Members = new HashMap<>();
 
         ClanSettings clanSettings = client.getClanSettings();
         assert clanSettings != null;
@@ -967,7 +971,6 @@ public class OneShotPlugin extends Plugin
         for (ClanMember clanMember : clanMembers)
         {
             String memberName = clanMember.getName();
-//            log.debug(memberName.toLowerCase().replace(" ", " ") + ": " + convertToHexString(memberName.toLowerCase().replace(" ", " ").getBytes()));
             Members.put(memberName.toLowerCase().replace(" ", " "), memberName);
         }
         return Members;
