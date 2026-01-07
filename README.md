@@ -7,13 +7,14 @@
 - This clan is **exclusively for Hardcore Ironmen**
 - **HCGIMs are not permitted** to join
 
-<h2><img src="docs/iconRoles.png" style="height: 1em; vertical-align: middle;"> Live Roles </h2>
+<h2> Info </h2>
 
+ - View main world.
  - View clan roles **in real time**.
 
 ![Roles](docs/roles.png)
 
-<h2><img src="docs/iconRankings.png" style="height: 1em; vertical-align: middle;"> Clan Rankings </h2>
+<h2> Clan Rankings </h2>
 
  - Compare performance and rankings among the top players in the clan.
 
@@ -21,6 +22,10 @@
 ![Skills](docs/rankingbosses.png) 
 ![Skills](docs/rankingsailing.png) 
 
-<h2><img src="docs/iconDiscord.png" style="height: 1em; vertical-align: middle;"> Discord Link </h2>
+<h2> Discord </h2>
 
- - Quickly opens your browser to the **One Shot clan Discord**.
+- Check discord live members.
+- Quickly join the discord server.
+- Check which clogs can be announced.
+
+![Discord](docs/discord.png) 
