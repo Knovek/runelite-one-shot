@@ -20,14 +20,9 @@ public class Constants {
 
     public static String WORKER_URL = "https://runelite-webhook-api.pqnarte.workers.dev/send";
 
-    // Main Panel Buttons
+    // Panel
     public static final String LINK_DISCORD = "https://www.discord.gg/one-shot";
     public static final String LINK_DISCORD_API = "https://discord.com/api/invites/one-shot?with_counts=true";
-    public static final String TIP_DISCORD = "Opens One Shot discord invitation on your browser";
-    public static final String TIP_LEADERBOARDS = "Check One Shot leaderboards";
-    public static final String TIP_ROLES = "Show clan roles";
-    public static final String TIP_MODTOOLS = "Open mod tools";
-    public static final int BUTTON_NUMBER = 4;
     public static final int BUTTON_SIZE = 40;
     public static final int TEXT_ICON_SIZE = 12;
 
@@ -58,6 +53,8 @@ public class Constants {
 
     public static final String WIKI_SEARCH = "https://oldschool.runescape.wiki/w/Special:Search?search=";
     public static final String WIKI_COMBAT_ACHIEVEMENTS_REWARDS = "https://oldschool.runescape.wiki/w/Combat_Achievements#Rewards";
+
+    public static final int MAX_TOTAL_LEVEL = 2376;
 
 
 
