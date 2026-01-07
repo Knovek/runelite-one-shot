@@ -93,7 +93,7 @@ public class DiscordClient {
 
     public void sendLevelUp(Skill skill, int level) throws IOException
     {
-        log.debug(String.format("Leveled up %s:%d",skill.getName(),level));
+        log.debug("Leveled up {}:{}", skill.getName(), level);
         if (level != 99) return;
 
         // ---- Level values ------------------------------------------------------
@@ -132,6 +132,52 @@ public class DiscordClient {
                         screenshot,
                         rankIcon,
                         thumbnail
+                );
+            } catch (Exception e) {
+                log.error("Failed to send quest embed", e);
+            }
+        });
+
+    }
+
+    public void sendLevelMaxed(int level) throws IOException
+    {
+        // ---- Static values -----------------------------------------------------
+        String description = "";
+        String title = String.format("Achieved Max Total Level %d", level);
+        String playerName = client.getLocalPlayer().getName();
+        List<DiscordField> fields = List.of();
+
+        // ---- Thumbnail -----------------------------------------------------
+        byte[] levelThumbnail = scaleWithPadding(
+                Icons.LEVEL_IMAGE,
+                Constants.DISCORD_THUMBNAIL_SIZE,
+                1
+        );
+
+        byte[] rankIcon = getRankIcon(playerName);
+
+        // ---- Send --------------------------------------------------------------
+        CompletableFuture<Image> screenshotFuture = config.uploadscreenshots()
+                ? getScreenshot()
+                : CompletableFuture.completedFuture(null);
+
+        screenshotFuture.thenAcceptAsync(img -> {
+            try {
+                byte[] screenshot = img != null
+                        ? bufferedImageToBytes((BufferedImage) img)
+                        : null;
+
+                sendDiscordEmbed(
+                        partypete,
+                        title,
+                        Constants.DISCORD_LEVELS_COLOR,
+                        playerName,
+                        description,
+                        fields,
+                        screenshot,
+                        rankIcon,
+                        levelThumbnail
                 );
             } catch (Exception e) {
                 log.error("Failed to send quest embed", e);
@@ -198,7 +244,7 @@ public class DiscordClient {
         if (!validPoints && !validQuests) { return; }
 
         String questName = QuestUtils.parseQuestWidget(questText);
-        log.debug("Completed quest: " + questText);
+        log.debug("Completed quest: {}", questText);
         if (questName == null || !Constants.GM_QUESTS.contains(questName))
             return;
 
@@ -312,7 +358,7 @@ public class DiscordClient {
     public void sendCombatAchievement(String combatTier) throws IOException
     {
         List<String> allowedTiers = List.of("Elite","Master","Grandmaster");
-        log.debug(String.format("Combat Achievement: %s", allowedTiers));
+        log.debug("Combat Achievement: {}", allowedTiers);
         if (!allowedTiers.contains(combatTier)) return;
 
         String playerName = client.getLocalPlayer().getName();
@@ -411,10 +457,9 @@ public class DiscordClient {
 
     public void sendLootDrop(String itemName) throws IOException
     {
-        if (appreciator == null) return;
         String playerName = client.getLocalPlayer().getName();
         boolean isAllowed = Constants.ITEMS_WHITELIST.contains(itemName);
-        log.debug(String.format("new collection log: %s - %s",itemName,isAllowed ? "Allowed" : "Not allowed"));
+        log.debug("new collection log: {} - {}", itemName, isAllowed ? "Allowed" : "Not allowed");
         if (!isAllowed) return;
 
         // ---- Text ----------------------------------------------------------
@@ -672,49 +717,12 @@ public class DiscordClient {
         }
     }
 
-
-//    public CompletableFuture<Image> getScreenshot()
-//    {
-//        CompletableFuture<Image> f = new CompletableFuture<>();
-//        boolean privacyMode = config.hidechats();
-//
-//        clientThread.invoke(() ->
-//        {
-//            boolean chatHidden = hideWidget(privacyMode, client, InterfaceID.Chatbox.CHATAREA);
-//
-//            drawManager.requestNextFrameListener(image ->
-//            {
-//                f.complete(image);
-//
-//                clientThread.invoke(() ->
-//                        unhideWidget(chatHidden, client, clientThread, InterfaceID.Chatbox.CHATAREA)
-//                );
-//            });
-//        });
-//
-//        return f;
-//    }
-
     public void onGameTick()
     {
         if (pendingScreenshot == null)
         {
             return;
         }
-
-//        if (screenshotDelayTicks == 1)
-//        {
-//            boolean privacyMode = config.hidechats();
-//
-//            clientThread.invoke(() ->
-//            {
-//                chatHiddenForScreenshot = hideWidget(
-//                        privacyMode,
-//                        client,
-//                        InterfaceID.Chatbox.CHATAREA
-//                );
-//            });
-//        }
 
         if (screenshotDelayTicks > 0)
         {
@@ -924,7 +932,6 @@ public class DiscordClient {
             boolean first = true;
 
             if (screenshot != null) {
-                if (!first) attachmentsJson.append(",");
                 first = false;
                 attachmentsJson.append(buildAttachmentJson("screenshot.png", screenshot));
             }
@@ -940,7 +947,6 @@ public class DiscordClient {
             }
             if (thumbnailBytes != null) {
                 if (!first) attachmentsJson.append(",");
-                first = false;
                 attachmentsJson.append(buildAttachmentJson("thumb.png", thumbnailBytes));
             }
 
@@ -968,7 +974,7 @@ public class DiscordClient {
                     log.error("Failed to send to Worker", e);
                 }
 
-                @Override public void onResponse(Call call, Response response) throws IOException {
+                @Override public void onResponse(Call call, Response response) {
                     response.close();
                 }
             });
