@@ -490,7 +490,7 @@ public class DiscordClient {
         }
         clientThread.invokeLater(() -> {
             int totalCollectionLogs = client.getVarpValue(VarPlayerID.COLLECTION_COUNT_MAX);
-            int collectedLogs = client.getVarpValue(VarPlayerID.COLLECTION_COUNT) + 1; // varp is not updated on time
+            int collectedLogs = client.getVarpValue(VarPlayerID.COLLECTION_COUNT);
 
             fields.add(new DiscordField(
                     "Collections logged",
