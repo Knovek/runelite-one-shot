@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.*;
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -33,6 +34,7 @@ import javax.swing.event.DocumentListener;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableRowSorter;
 
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.gameval.SpriteID;
 import net.runelite.api.Experience;
@@ -924,14 +926,21 @@ public class OneShotPanel extends PluginPanel
         button.setMinimumSize(new Dimension(0, 35));
 
 
-        spriteManager.getSpriteAsync(skill == null ? SpriteID.SideIcons.COMBAT : skill.getSpriteId(), 0, (sprite) ->
-                SwingUtilities.invokeLater(() ->
-                {
-                    // Icons are all 25x25 or smaller, so they're fit into a 25x25 canvas to give them a consistent size for
-                    // better alignment. Further, they are then scaled down to 20x20 to not be overly large in the panel.
-                    final BufferedImage scaledSprite = ImageUtil.resizeImage(ImageUtil.resizeCanvas(sprite, 25, 25), 20, 20);
-                    button.setIcon(new ImageIcon(scaledSprite));
-                }));
+        BufferedImage clueImg = getClueScrollIcon(skill);
+        if (clueImg != null) {
+            final BufferedImage scaledSprite = ImageUtil.resizeImage(ImageUtil.resizeCanvas(clueImg, 25, 25), 20, 20);
+            button.setIcon(new ImageIcon(scaledSprite));
+        }
+        else {
+            spriteManager.getSpriteAsync(skill == null ? SpriteID.SideIcons.COMBAT : skill.getSpriteId(), 0, (sprite) ->
+                    SwingUtilities.invokeLater(() ->
+                    {
+                        // Icons are all 25x25 or smaller, so they're fit into a 25x25 canvas to give them a consistent size for
+                        // better alignment. Further, they are then scaled down to 20x20 to not be overly large in the panel.
+                        final BufferedImage scaledSprite = ImageUtil.resizeImage(ImageUtil.resizeCanvas(sprite, 25, 25), 20, 20);
+                        button.setIcon(new ImageIcon(scaledSprite));
+                    }));
+        }
 
         boolean totalLabel = skill == OVERALL || skill == null; //overall or combat
         button.setIconTextGap(totalLabel ? 10 : 4);
@@ -1887,6 +1896,11 @@ public class OneShotPanel extends PluginPanel
             }
             @Override public void mouseReleased(MouseEvent e) {
                 copyToClipboard(Constants.LINK_DISCORD);
+                clientThread.invoke(() ->
+                {
+                    String msg = "New item added to your collection log: Draconic visage";
+                    client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", msg, null);
+                });
                 copyInvite.setBackground(hoverColor);
             }
             @Override public void mouseEntered(MouseEvent e) {
@@ -2011,12 +2025,7 @@ public class OneShotPanel extends PluginPanel
 
     private String normalizeSkillName(HiscoreSkill skill) {
         String name = skill.toString().toLowerCase();
-        switch (name)
-        {
-            case "runecraft": return "runecrafting";
-            case "clue_scroll_all": return "clue_scrolls_all";
-            default: return name;
-        }
+        return Constants.NORMALIZED_NAMES.getOrDefault(name, name);
     }
 
     private JsonArray fetchSkillData(String name)
@@ -2045,7 +2054,8 @@ public class OneShotPanel extends PluginPanel
 
             if (
                     (data.has("kills") && data.get("kills").getAsInt() <= 0) ||
-                    (data.has("experience") && data.get("experience").getAsLong() <= 0)
+                    (data.has("experience") && data.get("experience").getAsLong() <= 0) ||
+                    (data.has("score") && data.get("score").getAsInt() <= 0)
             ) {
                 break; // stop processing the rest of the array
             }
@@ -2115,14 +2125,23 @@ public class OneShotPanel extends PluginPanel
 
         // Skill icon
         JLabel iconLabel = new JLabel();
-        spriteManager.getSpriteAsync(
-                skill == null ? SpriteID.SideIcons.COMBAT : skill.getSpriteId(),
-                0,
-                sprite -> SwingUtilities.invokeLater(() -> {
-                    BufferedImage scaled = ImageUtil.resizeImage(ImageUtil.resizeCanvas(sprite, 25, 25), 30, 30);
-                    iconLabel.setIcon(new ImageIcon(scaled));
-                })
-        );
+        BufferedImage clueImg = getClueScrollIcon(skill);
+
+        if (clueImg != null) {
+            BufferedImage scaled = ImageUtil.resizeImage(ImageUtil.resizeCanvas(clueImg, 25, 25), 30, 30);
+            iconLabel.setIcon(new ImageIcon(scaled));
+        }
+        else {
+            spriteManager.getSpriteAsync(
+                    skill == null ? SpriteID.SideIcons.COMBAT : skill.getSpriteId(),
+                    0,
+                    sprite -> SwingUtilities.invokeLater(() -> {
+                        BufferedImage scaled = ImageUtil.resizeImage(ImageUtil.resizeCanvas(sprite, 25, 25), 30, 30);
+                        iconLabel.setIcon(new ImageIcon(scaled));
+                    })
+            );
+        }
+
         JLabel nameLabel = buildAutoSizedTitle(skill.getName(), 180, 18f);
 
         header.add(iconLabel);
@@ -2272,6 +2291,23 @@ public class OneShotPanel extends PluginPanel
         table.setAutoResizeMode(isSkill
                 ? JTable.AUTO_RESIZE_LAST_COLUMN
                 : JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS);
+    }
+    @Nullable
+    private static BufferedImage getClueScrollIcon(HiscoreSkill skill)
+    {
+        if (skill == null)
+            return null;
+
+        switch (skill)
+        {
+            case CLUE_SCROLL_BEGINNER: return Icons.CLUE_SCROLL_BEGINNER;
+            case CLUE_SCROLL_EASY:     return Icons.CLUE_SCROLL_EASY;
+            case CLUE_SCROLL_MEDIUM:   return Icons.CLUE_SCROLL_MEDIUM;
+            case CLUE_SCROLL_HARD:     return Icons.CLUE_SCROLL_HARD;
+            case CLUE_SCROLL_ELITE:    return Icons.CLUE_SCROLL_ELITE;
+            case CLUE_SCROLL_MASTER:   return Icons.CLUE_SCROLL_MASTER;
+            default: return null;
+        }
     }
 
 
