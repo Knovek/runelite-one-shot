@@ -1896,11 +1896,6 @@ public class OneShotPanel extends PluginPanel
             }
             @Override public void mouseReleased(MouseEvent e) {
                 copyToClipboard(Constants.LINK_DISCORD);
-                clientThread.invoke(() ->
-                {
-                    String msg = "New item added to your collection log: Draconic visage";
-                    client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", msg, null);
-                });
                 copyInvite.setBackground(hoverColor);
             }
             @Override public void mouseEntered(MouseEvent e) {
