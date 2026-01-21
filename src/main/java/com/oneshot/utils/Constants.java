@@ -2,6 +2,7 @@ package com.oneshot.utils;
 
 
 import com.google.common.collect.ImmutableList;
+import lombok.Getter;
 import net.runelite.api.clan.ClanRank;
 import net.runelite.api.gameval.VarbitID;
 import net.runelite.client.hiscore.HiscoreSkill;
@@ -99,10 +100,26 @@ public class Constants {
 
     // Activities
     public static final List<HiscoreSkill> ACTIVITIES = ImmutableList.of(
-            CLUE_SCROLL_ALL, //LEAGUE_POINTS, LAST_MAN_STANDING,
-            //SOUL_WARS_ZEAL, RIFTS_CLOSED, COLOSSEUM_GLORY,
-            COLLECTIONS_LOGGED//, BOUNTY_HUNTER_ROGUE, BOUNTY_HUNTER_HUNTER,
-            //PVP_ARENA_RANK
+            CLUE_SCROLL_BEGINNER, CLUE_SCROLL_EASY, CLUE_SCROLL_MEDIUM,
+            CLUE_SCROLL_HARD, CLUE_SCROLL_ELITE, CLUE_SCROLL_MASTER,
+            CLUE_SCROLL_ALL, LEAGUE_POINTS, LAST_MAN_STANDING,
+            SOUL_WARS_ZEAL, RIFTS_CLOSED, COLOSSEUM_GLORY,
+            COLLECTIONS_LOGGED, BOUNTY_HUNTER_ROGUE, BOUNTY_HUNTER_HUNTER,
+            PVP_ARENA_RANK
+    );
+
+    // Mapping for WOM queries
+    public static final Map<String, String> NORMALIZED_NAMES = Map.ofEntries(
+            Map.entry("runecraft", "runecrafting"),
+            Map.entry("clue_scroll_all", "clue_scrolls_all"),
+            Map.entry("clue_scroll_beginner", "clue_scrolls_beginner"),
+            Map.entry("clue_scroll_easy", "clue_scrolls_easy"),
+            Map.entry("clue_scroll_medium", "clue_scrolls_medium"),
+            Map.entry("clue_scroll_hard", "clue_scrolls_hard"),
+            Map.entry("clue_scroll_elite", "clue_scrolls_elite"),
+            Map.entry("clue_scroll_master", "clue_scrolls_master"),
+            Map.entry("pvp_arena_rank", "pvp_arena"),
+            Map.entry("rifts_closed", "guardians_of_the_rift")
     );
 
     public static final List<Integer> ACHIEVEMENT_DIARIES_COMPLETE_VARBITS = List.of(
@@ -241,6 +258,7 @@ public class Constants {
             "Karil's leathertop",
             "Ahrim's robeskirt",
             "Karil's leatherskirt",
+            "Pirate's hook",
             "Bryophyta's essence",
             "Voidwaker hilt",
             "Dragon pickaxe",
@@ -282,9 +300,17 @@ public class Constants {
             "Avernic treads",
             "Eye of ayak",
             "Mokhaiotl cloth",
+            "Ice quartz",
+            "Eye of the duke",
+            "Magus vestige",
             "Virtus mask",
             "Virtus robe bottom",
             "Virtus robe top",
+            "Gilded coif",
+            "Gilded boots",
+            "Gilded d'hide body",
+            "Gilded spade",
+            "Gilded pickaxe",
             "Gilded d'hide vambraces",
             "Gilded axe",
             "Gilded d'hide chaps",
@@ -293,6 +319,10 @@ public class Constants {
             "3rd age wand",
             "3rd age bow",
             "3rd age longsword",
+            "Ring of 3rd age",
+            "Sunfire fanatic helm",
+            "Echo crystal",
+            "Sunfire fanatic cuirass",
             "Sunfire fanatic chausses",
             "Tonalztics of ralos (uncharged)",
             "Dizana's quiver (uncharged)",
@@ -301,7 +331,15 @@ public class Constants {
             "Bandos chestplate",
             "Zenyte shard",
             "Granite hammer",
+            "Abyssal needle",
+            "Abyssal lantern",
             "Ring of endurance (uncharged)",
+            "Gilded hasta",
+            "Gilded plateskirt",
+            "Gilded sq shield",
+            "Gilded med helm",
+            "Gilded spear",
+            "Gilded chainbody",
             "Gilded 2h sword",
             "Gilded full helm",
             "Gilded platelegs",
@@ -321,6 +359,7 @@ public class Constants {
             "3rd age robe top",
             "3rd age platebody",
             "Bottomless compost bucket",
+            "Draconic visage",
             "Trident of the seas (full)",
             "Armadyl hilt",
             "Armadyl helmet",
@@ -329,7 +368,12 @@ public class Constants {
             "Zamorakian spear",
             "Staff of the dead",
             "Zamorak hilt",
+            "Victor's cape (50)",
+            "Victor's cape (100)",
+            "Victor's cape (500)",
             "Victor's cape (1000)",
+            "Master wand",
+            "Mage's book",
             "3rd age druidic staff",
             "3rd age druidic cloak",
             "3rd age axe",
@@ -337,11 +381,14 @@ public class Constants {
             "3rd age pickaxe",
             "3rd age druidic robe top",
             "Ranger boots",
+            "Dragon limbs",
             "Broken zombie axe",
+            "Pharaoh's sceptre (uncharged)",
             "Dragon warhammer",
             "Amulet of eternal glory",
             "Dragon full helm",
             "Dragon metal slice",
+            "Expert mining gloves",
             "Eclipse atlatl",
             "Dual macuahuitl",
             "Ancient hilt",
@@ -352,14 +399,31 @@ public class Constants {
             "Nihil horn",
             "Venator shard",
             "Stale baguette",
+            "Amulet of avarice",
+            "Thammaron's sceptre (u)",
+            "Viggora's chainmace (u)",
             "Ancient effigy",
             "Craw's bow (u)",
             "Ancient relic",
+            "Fire element staff crown",
+            "Ice element staff crown",
+            "Deadeye prayer scroll",
+            "Mystic vigour prayer scroll",
             "Dragon cannon barrel",
             "Bottled storm",
             "Broken dragon hook",
+            "Minor master scroll case",
+            "Major master scroll case",
+            "Mimic scroll case",
             "Belle's folly (tarnished)",
+            "Teleport anchoring scroll",
+            "Mystic hat (dusk)",
             "Leaf-bladed battleaxe",
+            "Mystic robe bottom (dusk)",
+            "Mystic robe top (dusk)",
+            "Dagon'hai hat",
+            "Dagon'hai robe bottom",
+            "Dagon'hai robe top",
             "Blood shard",
             "Horn of plenty (empty)",
             "Eternal gem",
@@ -368,13 +432,19 @@ public class Constants {
             "Wyvern visage",
             "Imbued heart",
             "Black mask (10)",
+            "Tome of water (empty)",
             "Fish barrel",
             "Dragon harpoon",
             "Fire cape",
             "Crystal armour seed",
             "Enhanced crystal weapon seed",
+            "Tome of earth (empty)",
             "Dragon hunter wand",
             "Infernal cape",
+            "Scarred tablet",
+            "Smoke quartz",
+            "Leviathan's lure",
+            "Venator vestige",
             "Inquisitor's great helm",
             "Nightmare staff",
             "Volatile orb",
@@ -383,6 +453,11 @@ public class Constants {
             "Eldritch orb",
             "Inquisitor's mace",
             "Harmonised orb",
+            "Parasitic egg",
+            "Sirenic tablet",
+            "Shadow quartz",
+            "Siren's staff",
+            "Bellator vestige",
             "Justiciar legguards",
             "Justiciar chestguard",
             "Justiciar faceguard",
@@ -390,7 +465,11 @@ public class Constants {
             "Ghrazi rapier",
             "Avernic defender hilt",
             "Scythe of vitur (uncharged)",
+            "Holy ornament kit",
+            "Sanguine ornament kit",
+            "Sanguine dust",
             "Occult necklace",
+            "Elidinis' ward",
             "Lightbearer",
             "Masori mask",
             "Osmumten's fang",
@@ -398,46 +477,24 @@ public class Constants {
             "Masori body",
             "Tumeken's shadow (uncharged)",
             "Thread of elidinis",
+            "Masori crafting kit",
+            "Burning claw",
             "Tormented synapse",
+            "Blood quartz",
+            "Ultor vestige",
             "Voidwaker gem",
+            "Voidwaker blade",
             "Dragon pickaxe (broken)",
             "Skeletal visage",
             "Vorkath's head",
+            "Tome of fire (empty)",
             "Oathplate helm",
             "Oathplate legs",
             "Oathplate chest",
             "Crystal tool seed",
             "Serpentine visage",
             "Magic fang",
-            "Tanzanite fang",
-            "Ice quartz",
-            "Eye of the duke",
-            "Magus vestige",
-            "Gilded coif",
-            "Gilded boots",
-            "Gilded d'hide body",
-            "Gilded spade",
-            "Gilded pickaxe",
-            "Ring of 3rd age",
-            "Gilded hasta",
-            "Gilded plateskirt",
-            "Gilded sq shield",
-            "Gilded med helm",
-            "Gilded spear",
-            "Gilded chainbody",
-            "Deadeye prayer scroll",
-            "Mystic vigour prayer scroll",
-            "Scarred tablet",
-            "Smoke quartz",
-            "Leviathan's lure",
-            "Venator vestige",
-            "Parasitic egg",
-            "Sirenic tablet",
-            "Shadow quartz",
-            "Siren's staff",
-            "Bellator vestige",
-            "Blood quartz",
-            "Ultor vestige"
+            "Tanzanite fang"
     );
 
     // Combat Achievements
@@ -481,4 +538,26 @@ public class Constants {
             "Monkey Madness II",
             "Song of the Elves",
             "While Guthix Sleeps");
+
+    // --- Enums ---
+    @Getter
+    public enum chatPrivacy
+    {
+        ALL("Hide All"),
+        PRIVATE("Hide Private"),
+        NONE("Show All");
+
+        @Getter
+        private final String group;
+
+        chatPrivacy(String group) {
+            this.group = group;
+        }
+
+        @Override
+        public String toString()
+        {
+            return group;
+        }
+    }
 }
