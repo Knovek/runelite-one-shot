@@ -3,7 +3,9 @@ package com.oneshot.modules;
 import com.oneshot.OneShotConfig;
 import com.oneshot.utils.Constants;
 import com.oneshot.utils.Icons;
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
+import net.runelite.api.MenuAction;
 import net.runelite.api.Skill;
 import net.runelite.api.annotations.Component;
 import net.runelite.api.clan.ClanRank;
@@ -57,9 +59,25 @@ public class DiscordClient {
     private SkillIconManager skillIconManager;
 
     private CompletableFuture<Image> pendingScreenshot;
+    private Constants.chatPrivacy pendingChatPrivacy = Constants.chatPrivacy.ALL;
+    private Integer previousPrivateChatMode = null;
     private boolean chatHiddenForScreenshot;
     private boolean hideSplitChatForScreenshot;
     private int screenshotDelayTicks;
+
+    // Variables related to menu actions for setting private chat to all, friends only and off
+    // Necessary to hide private chat when screenshotting (if chat privacy configs are set to ChatPrivacy.PRIVATE
+    // If configs are set to ChatPrivacy.ALL, it hides the whole chatbox and does nothing if set to ChatPrivacy.NONE
+    private static final int PRIVATE_CHAT_P0 = -1;
+    private static final int PRIVATE_CHAT_P1 = 10616847;
+    private static final int PRIVATE_CHAT_ITEM_ID = -1;
+    private static final int PRIVATE_CHAT_ID_SHOW_NONE = 5;
+    private static final int PRIVATE_CHAT_ID_SHOW_FRIENDS = 4;
+    private static final int PRIVATE_CHAT_ID_SHOW_ALL  = 3;
+    private static final String PRIVATE_CHAT_OPT_SHOW_NONE = "<col=ffff00>Private:</col> Show none";
+    private static final String PRIVATE_CHAT_OPT_SHOW_FRIENDS  = "<col=ffff00>Private:</col> Show friends";
+    private static final String PRIVATE_CHAT_OPT_SHOW_ALL  = "<col=ffff00>Private:</col> Show all";
+    private static final String PRIVATE_CHAT_TARGET = "";
 
     private static final MediaType JSON_MEDIA = MediaType.get("application/json; charset=utf-8");
     private static final String WORKER_URL = Constants.WORKER_URL;
@@ -91,17 +109,16 @@ public class DiscordClient {
         this.skillIconManager = skillIconManager;
     }
 
-    public void sendLevelUp(Skill skill, int level) throws IOException
-    {
+    public void sendLevelUp(Skill skill, int level) throws IOException {
         log.debug("Leveled up {}:{}", skill.getName(), level);
         if (level != 99) return;
+        notifyDiscordAnnouncement("Leveled up " + skill.getName() + ": 99");
 
         // ---- Level values ------------------------------------------------------
         String description = "";
         String title = String.format("Achieved %s Level %d", skill.getName(), level);
 
         // ---- Static values -----------------------------------------------------
-        String username = null;
         String playerName = client.getLocalPlayer().getName();
 
         List<DiscordField> fields = List.of();
@@ -112,8 +129,8 @@ public class DiscordClient {
         byte[] rankIcon = getRankIcon(playerName);
 
         // ---- Send --------------------------------------------------------------
-        CompletableFuture<Image> screenshotFuture = config.uploadscreenshots()
-                ? getScreenshot()
+        CompletableFuture<Image> screenshotFuture = config.announceLevelScreenshot()
+                ? getScreenshot(config.announceLevelChatPrivacy())
                 : CompletableFuture.completedFuture(null);
 
         screenshotFuture.thenAcceptAsync(img -> {
@@ -140,9 +157,9 @@ public class DiscordClient {
 
     }
 
-    public void sendLevelMaxed(int level) throws IOException
-    {
+    public void sendLevelMaxed(int level) throws IOException {
         // ---- Static values -----------------------------------------------------
+        notifyDiscordAnnouncement("Max Total Level " + level);
         String description = "";
         String title = String.format("Achieved Max Total Level %d", level);
         String playerName = client.getLocalPlayer().getName();
@@ -158,8 +175,8 @@ public class DiscordClient {
         byte[] rankIcon = getRankIcon(playerName);
 
         // ---- Send --------------------------------------------------------------
-        CompletableFuture<Image> screenshotFuture = config.uploadscreenshots()
-                ? getScreenshot()
+        CompletableFuture<Image> screenshotFuture = config.announceMaxedScreenshot()
+                ? getScreenshot(config.announceMaxedChatPrivacy())
                 : CompletableFuture.completedFuture(null);
 
         screenshotFuture.thenAcceptAsync(img -> {
@@ -186,10 +203,10 @@ public class DiscordClient {
 
     }
 
-    public void send200(Skill skill) throws IOException
-    {
+    public void sendXP200(Skill skill) throws IOException {
         String description = "";
         String title = String.format("Achieved 200M XP in %s", skill.getName());
+        notifyDiscordAnnouncement(title);
 
         // ---- Static values -----------------------------------------------------
         String playerName = client.getLocalPlayer().getName();
@@ -203,8 +220,8 @@ public class DiscordClient {
         byte[] rankIcon = getRankIcon(playerName);
 
         // ---- Send --------------------------------------------------------------
-        CompletableFuture<Image> screenshotFuture = config.uploadscreenshots()
-                ? getScreenshot()
+        CompletableFuture<Image> screenshotFuture = config.announce200MScreenshot()
+                ? getScreenshot(config.announce200MChatPrivacy())
                 : CompletableFuture.completedFuture(null);
 
         screenshotFuture.thenAcceptAsync(img -> {
@@ -247,6 +264,7 @@ public class DiscordClient {
         log.debug("Completed quest: {}", questText);
         if (questName == null || !Constants.GM_QUESTS.contains(questName))
             return;
+        notifyDiscordAnnouncement("Quest completed: " + questName);
 
         // ---- Static values -----------------------------------------------------
         String url = getWikiUrl(questName);
@@ -255,7 +273,7 @@ public class DiscordClient {
         String title = "Quest completed";
         List<DiscordField> fields = new ArrayList<>();
 
-        if (config.uploadTotalQuestPoints())
+        if (config.announceQuestsStats())
         {
             fields.add(new DiscordField(
                     "Quests completed",
@@ -278,8 +296,8 @@ public class DiscordClient {
         byte[] rankIcon = getRankIcon(playerName);
 
         // ---- Send --------------------------------------------------------------
-        CompletableFuture<Image> screenshotFuture = config.uploadscreenshots()
-                ? getScreenshot()
+        CompletableFuture<Image> screenshotFuture = config.announceQuestsScreenshot()
+                ? getScreenshot(config.announceQuestsChatPrivacy())
                 : CompletableFuture.completedFuture(null);
 
         screenshotFuture.thenAcceptAsync(img -> {
@@ -308,6 +326,7 @@ public class DiscordClient {
 
     public void sendAchievementDiary(String areaStr, String tierStr) throws IOException {
         if (!Objects.equals(tierStr, "Elite")) return;
+        notifyDiscordAnnouncement("Elite " + areaStr + " Diaries Completed");
         // Capture client-thread-safe data first
         String playerName = client.getLocalPlayer().getName();
 
@@ -327,8 +346,8 @@ public class DiscordClient {
         );
 
         // ---- Send --------------------------------------------------------------
-        CompletableFuture<Image> screenshotFuture = config.uploadscreenshots()
-                ? getScreenshot()
+        CompletableFuture<Image> screenshotFuture = config.announceDiariesScreenshot()
+                ? getScreenshot(config.announceDiariesChatPrivacy())
                 : CompletableFuture.completedFuture(null);
 
         screenshotFuture.thenAcceptAsync(img -> {
@@ -354,9 +373,7 @@ public class DiscordClient {
         });
     }
 
-
-    public void sendCombatAchievement(String combatTier) throws IOException
-    {
+    public void sendCombatAchievement(String combatTier) throws IOException {
         List<String> allowedTiers = List.of("Elite","Master","Grandmaster");
         log.debug("Combat Achievement: {}", allowedTiers);
         if (!allowedTiers.contains(combatTier)) return;
@@ -367,6 +384,7 @@ public class DiscordClient {
         String title = combatTier + " Tier Rewards unlocked";
         String itemWikiUrl = Constants.WIKI_COMBAT_ACHIEVEMENTS_REWARDS;
         String description = String.format("[%s](%s)","Combat Achievement Rewards",itemWikiUrl);
+        notifyDiscordAnnouncement(title);
 
         // ---- Rank icon -----------------------------------------------------
         byte[] rankIcon = getRankIcon(playerName);
@@ -375,8 +393,8 @@ public class DiscordClient {
         String itemImageUrl = Constants.COMBAT_ACHIEVEMENT_REWARDS_IMAGE_URL.get(combatTier);
 
         // ---- Send --------------------------------------------------------------
-        CompletableFuture<Image> screenshotFuture = config.uploadscreenshots()
-                ? getScreenshot()
+        CompletableFuture<Image> screenshotFuture = config.announceCombatAchievementsScreenshot()
+                ? getScreenshot(config.announceCombatAchievementsChatPrivacy())
                 : CompletableFuture.completedFuture(null);
 
         screenshotFuture.thenAcceptAsync(img -> {
@@ -403,11 +421,9 @@ public class DiscordClient {
 
     }
 
-
-
-    public void sendPet(String itemName) throws IOException
-    {
+    public void sendPet(String itemName) throws IOException {
         String playerName = client.getLocalPlayer().getName();
+        notifyDiscordAnnouncement("New pet: " + itemName);
 
         // ---- Text ----------------------------------------------------------
         String title = "New pet";
@@ -427,8 +443,8 @@ public class DiscordClient {
         }
 
         // ---- Send --------------------------------------------------------------
-        CompletableFuture<Image> screenshotFuture = config.uploadscreenshots()
-                ? getScreenshot(4)
+        CompletableFuture<Image> screenshotFuture = config.announcePetsScreenshot()
+                ? getScreenshot(4, config.announcePetsChatPrivacy())
                 : CompletableFuture.completedFuture(null);
 
         screenshotFuture.thenAcceptAsync(img -> {
@@ -455,12 +471,12 @@ public class DiscordClient {
 
     }
 
-    public void sendLootDrop(String itemName) throws IOException
-    {
+    public void sendLootDrop(String itemName) throws IOException {
         String playerName = client.getLocalPlayer().getName();
         boolean isAllowed = Constants.ITEMS_WHITELIST.contains(itemName);
         log.debug("new collection log: {} - {}", itemName, isAllowed ? "Allowed" : "Not allowed");
         if (!isAllowed) return;
+        notifyDiscordAnnouncement("New collection log: " + itemName);
 
         // ---- Text ----------------------------------------------------------
         String title = "New collection log";
@@ -512,8 +528,8 @@ public class DiscordClient {
         }
 
         // ---- Send --------------------------------------------------------------
-        CompletableFuture<Image> screenshotFuture = config.uploadscreenshots()
-                ? getScreenshot(4)
+        CompletableFuture<Image> screenshotFuture = config.announceCollectionLogsScreenshot()
+                ? getScreenshot(4, config.announceCollectionLogsChatPrivacy())
                 : CompletableFuture.completedFuture(null);
 
         screenshotFuture.thenAcceptAsync(img -> {
@@ -540,8 +556,7 @@ public class DiscordClient {
 
     }
 
-    public void sendDeath(String actorInteraction, CompletableFuture<Image> screenshotFuture) throws IOException
-    {
+    public void sendDeath(String actorInteraction, CompletableFuture<Image> screenshotFuture) throws IOException {
         String playerName = client.getLocalPlayer().getName();
 
         // ---- Text ----------------------------------------------------------
@@ -549,37 +564,21 @@ public class DiscordClient {
         String description = "";
 
         // ---- Fields --------------------------------------------------------
-        List<DiscordField> fields = new ArrayList<>();
-        fields.add(new DiscordField("Total Level", String.valueOf(client.getTotalLevel()), true));
-        fields.add(new DiscordField(
-                "Combat Level",
-                String.valueOf(client.getLocalPlayer().getCombatLevel()),
-                true
-        ));
+        List<DiscordField> fields;
+        if (config.announceDeathsStats()) {
+            fields = new ArrayList<>();
+            fields.add(new DiscordField("Total Level", String.valueOf(client.getTotalLevel()), true));
+            fields.add(new DiscordField(
+                    "Combat Level",
+                    String.valueOf(client.getLocalPlayer().getCombatLevel()),
+                    true
+            ));
+        } else {
+            fields = null;
+        }
 
         // ---- Rank icon + field ---------------------------------------------
-        byte[] chatImageBytes;
-        ClanSettings clan = client.getClanSettings();
-
-        if (clan != null)
-        {
-            ClanRank rank = clan.findMember(playerName).getRank();
-            ClanTitle titleRank = clan.titleForRank(rank);
-
-            fields.add(new DiscordField("Rank", titleRank.getName(), true));
-
-            BufferedImage rankImage = chatIconManager.getRankImage(titleRank);
-            chatImageBytes = scaleWithPadding(
-                    rankImage,
-                    Constants.DISCORD_AUTHOR_ICON_SIZE,
-                    Constants.DISCORD_AUTHOR_ICON_SCALE
-            );
-        }
-        else
-        {
-            chatImageBytes = null;
-            fields.add(new DiscordField("Rank", "not in clan", true));
-        }
+        byte[] rankIcon = getRankIcon(playerName);
 
         // ---- Thumbnail -----------------------------------------------------
         byte[] deathThumbnail = scaleWithPadding(
@@ -589,7 +588,7 @@ public class DiscordClient {
         );
 
         // ---- Screenshot handling -------------------------------------------
-        if (config.uploadscreenshots())
+        if (config.announceDeathsScreenshot())
         {
             screenshotFuture.thenAcceptAsync(img -> {
                 try {
@@ -603,7 +602,7 @@ public class DiscordClient {
                             description,
                             fields,
                             screenshot,
-                            chatImageBytes,
+                            rankIcon,
                             deathThumbnail
                     );
                 } catch (Exception e) {
@@ -621,19 +620,18 @@ public class DiscordClient {
                     description,
                     fields,
                     null,
-                    chatImageBytes,
+                    rankIcon,
                     deathThumbnail
             );
         }
     }
 
-    private String getWikiUrl(String wikiName){
+    private String getWikiUrl(String wikiName) {
         String encoded = wikiName.replace(" ", "_");
         return Constants.WIKI_SEARCH + encoded;
     }
 
-    private static String itemImageUrl(int itemId)
-    {
+    private static String itemImageUrl(int itemId) {
         return "https://static.runelite.net/cache/item/icon/" + itemId + ".png";
     }
 
@@ -643,14 +641,12 @@ public class DiscordClient {
         return itemSearcher.findItemId(itemName);
     }
 
-
     private int getHAPrice(String itemName) {
         ItemPrice item = findItem(itemName);
         if (item == null) return -1;
 
         return client.getItemDefinition(item.getId()).getHaPrice();
     }
-
 
     private int getWikiPrice(String itemName) {
         ItemPrice item = findItem(itemName);
@@ -659,7 +655,6 @@ public class DiscordClient {
         return itemManager.getWikiPrice(item);
     }
 
-
     private ItemPrice findItem(String itemName) {
         return itemManager.search(itemName).stream()
                 .filter(it -> it.getName().equalsIgnoreCase(itemName))
@@ -667,8 +662,7 @@ public class DiscordClient {
                 .orElse(null);
     }
 
-    private byte[] getRankIcon(String playerName) throws IOException
-    {
+    private byte[] getRankIcon(String playerName) throws IOException {
         ClanSettings clan = client.getClanSettings();
         if (clan == null)
             return null;
@@ -682,8 +676,7 @@ public class DiscordClient {
                 Constants.DISCORD_AUTHOR_ICON_SCALE);
     }
 
-    public byte[] scaleWithPadding(BufferedImage original, int iconSize, double scaleFactor) throws IOException
-    {
+    public byte[] scaleWithPadding(BufferedImage original, int iconSize, double scaleFactor) {
         int visibleSize = (int) (iconSize * scaleFactor);
 
         // Create 20×20 transparent canvas
@@ -717,8 +710,7 @@ public class DiscordClient {
         }
     }
 
-    public void onGameTick()
-    {
+    public void onGameTick() {
         if (pendingScreenshot == null)
         {
             return;
@@ -730,18 +722,22 @@ public class DiscordClient {
             return;
         }
 
-        boolean privacyMode = config.hidechats();
+
 
         // STEP 1 — run on client thread
         clientThread.invoke(() ->
         {
+            final Constants.chatPrivacy privacy = pendingChatPrivacy;
+            applyPrivateChatPrivacy(privacy);
+
             chatHiddenForScreenshot = hideWidget(
-                    privacyMode,
+                    shouldHidePublicChat(privacy),
                     client,
                     InterfaceID.Chatbox.CHATAREA
             );
+
             hideSplitChatForScreenshot = hideWidget(
-                    privacyMode,
+                    shouldHidePrivateChat(privacy),
                     client,
                     InterfaceID.PmChat.CONTAINER
             );
@@ -767,26 +763,34 @@ public class DiscordClient {
                             InterfaceID.PmChat.CONTAINER
                     );
 
+                    restorePrivateChatPrivacy();
                     pendingScreenshot = null;
                 });
             });
         });
     }
 
-    public CompletableFuture<Image> getScreenshot()
-    {
-        return getScreenshot(1);
+    public CompletableFuture<Image> getScreenshot(Constants.chatPrivacy chatPrivacy) {
+        return getScreenshot(1, chatPrivacy);
     }
 
-    public CompletableFuture<Image> getScreenshot(int delayTicks)
-    {
+    public CompletableFuture<Image> getScreenshot(int delayTicks, Constants.chatPrivacy chatPrivacy) {
         CompletableFuture<Image> future = new CompletableFuture<>();
 
         pendingScreenshot = future;
-        screenshotDelayTicks = delayTicks;
+        pendingChatPrivacy = (chatPrivacy != null) ? chatPrivacy : Constants.chatPrivacy.NONE;
+
+        if (pendingChatPrivacy == Constants.chatPrivacy.PRIVATE)
+        {
+            screenshotDelayTicks = Math.max(delayTicks, 2);
+        }
+        else
+        {
+            screenshotDelayTicks = delayTicks;
+        }
+
         return future;
     }
-
 
     public static boolean hideWidget(boolean shouldHide, Client client, @Component int info) {
         if (!shouldHide)
@@ -881,8 +885,7 @@ public class DiscordClient {
             @Nullable byte[] screenshot,
             @Nullable byte[] userIcon,
             @Nullable String thumbnailUrl
-    ) throws IOException //throws IOException
-    {
+    ) {
         byte[] footerIcon = bufferedImageToBytes(Icons.RED_HELM_IMAGE);
 
         DiscordWebhook.EmbedObject embed = new DiscordWebhook.EmbedObject()
@@ -996,5 +999,100 @@ public class DiscordClient {
         if (s == null) return "";
         return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
+
+    private void notifyDiscordAnnouncement(String content)
+    {
+        if (!config.infoMessage()) return;
+        clientThread.invoke(() ->
+        {
+            final String msg = "<col=ff0000>[One Shot]</col> Sent to Discord -> " + content;
+            client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", msg, null);
+        });
+    }
+
+    private boolean shouldHidePublicChat(Constants.chatPrivacy privacy) {
+        return privacy == Constants.chatPrivacy.ALL;
+    }
+
+    private boolean shouldHidePrivateChat(Constants.chatPrivacy privacy) {
+        return privacy == Constants.chatPrivacy.ALL
+            || privacy == Constants.chatPrivacy.PRIVATE;
+    }
+
+    // gave up on trying to set VarbitID.CHAT_FILTER_PRIVATE to 0,1,2
+    // instead, I'm replicating the menu clicks done by the user
+    // it's ugly, but it works
+    //
+    // when the config is enabled, the chat will be set to private off
+    // to hide private chats before screenshotting, and then restoring the previous state
+    private void applyPrivateChatPrivacy(Constants.chatPrivacy privacy)
+    {
+        if (privacy != Constants.chatPrivacy.PRIVATE)
+            return;
+
+        int current = client.getVarbitValue(VarbitID.CHAT_FILTER_PRIVATE);
+        if (current != 2)
+        {
+            previousPrivateChatMode = current;
+            setPrivateChatNone();
+        }
+    }
+
+    private void restorePrivateChatPrivacy()
+    {
+        if (previousPrivateChatMode == null)
+            return;
+
+        if (previousPrivateChatMode == 0)
+        {
+            setPrivateChatAll();
+        }
+        else if (previousPrivateChatMode == 1)
+        {
+            setPrivateChatFriends();
+        }
+
+        previousPrivateChatMode = null;
+    }
+
+    private void setPrivateChatNone()
+    {
+        client.menuAction(
+                PRIVATE_CHAT_P0,
+                PRIVATE_CHAT_P1,
+                MenuAction.CC_OP,
+                PRIVATE_CHAT_ID_SHOW_NONE,
+                PRIVATE_CHAT_ITEM_ID,
+                PRIVATE_CHAT_OPT_SHOW_NONE,
+                PRIVATE_CHAT_TARGET
+        );
+    }
+
+    private void setPrivateChatFriends()
+    {
+        client.menuAction(
+                PRIVATE_CHAT_P0,
+                PRIVATE_CHAT_P1,
+                MenuAction.CC_OP,
+                PRIVATE_CHAT_ID_SHOW_FRIENDS,
+                PRIVATE_CHAT_ITEM_ID,
+                PRIVATE_CHAT_OPT_SHOW_FRIENDS,
+                PRIVATE_CHAT_TARGET
+        );
+    }
+
+    private void setPrivateChatAll()
+    {
+        client.menuAction(
+                PRIVATE_CHAT_P0,
+                PRIVATE_CHAT_P1,
+                MenuAction.CC_OP,
+                PRIVATE_CHAT_ID_SHOW_ALL,
+                PRIVATE_CHAT_ITEM_ID,
+                PRIVATE_CHAT_OPT_SHOW_ALL,
+                PRIVATE_CHAT_TARGET
+        );
+    }
+
 
 }
