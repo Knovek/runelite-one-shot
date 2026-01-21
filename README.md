@@ -2,30 +2,154 @@
 
 [![Active Installs](http://img.shields.io/endpoint?url=https://api.runelite.net/pluginhub/shields/installs/plugin/one-shot)](https://runelite.net/plugin-hub/show/one-shot)
 
+---
 
-**One Shot** is a RuneLite plugin built specifically for the **One Shot** clan.
-- This clan is **exclusively for Hardcore Ironmen**
-- **HCGIMs are not permitted** to join
+## About
 
-<h2> Info </h2>
+**One Shot** is a RuneLite plugin built exclusively for the **One Shot** clan.
 
- - View main world.
- - View clan roles **in real time**.
+- **Hardcore Ironman only**
+- **HCGIMs are not permitted**
+- Integrates directly with the **One Shot Discord**
 
-![Roles](docs/roles.png)
+> ⚠️ **Important**  
+> This plugin will share screenshots to the One Shot Discord **unless disabled in settings**.
 
-<h2> Clan Rankings </h2>
+---
 
- - Compare performance and rankings among the top players in the clan.
+## Info
 
-![Skills](docs/rankingskills.png)
-![Skills](docs/rankingbosses.png) 
-![Skills](docs/rankingsailing.png) 
+- View the clan’s **main world**
+- View **clan roles in real time**
 
-<h2> Discord </h2>
+<p>
+  <img src="docs/roles.png" alt="Roles" />
+</p>
 
-- Check discord live members.
-- Quickly join the discord server.
-- Check which clogs can be announced.
+---
 
-![Discord](docs/discord.png) 
+## Clan Rankings
+
+- Compare performance and rankings among top clan members.
+
+<p>
+  <img src="docs/rankingskills.png" alt="Skill Rankings" />
+  <img src="docs/rankingbosses.png" alt="Boss Rankings" />
+  <img src="docs/rankingsailing.png" alt="Sailing Rankings" />
+</p>
+
+---
+
+## Discord Integration
+
+- View live Discord members
+- Quickly join the Discord server
+- Check which clogs are announceable
+- Fully customizable announcement settings
+
+<p>
+  <img src="docs/discord.png" alt="Discord Panel" />
+  <img src="docs/discord_clog.png" alt="Discord Clog" />
+</p>
+
+---
+
+## Settings
+
+<details>
+  <summary><b>Discord Global</b></summary>
+
+- **Show notification in chat** - *(default: yes)*
+
+</details>
+
+<details>
+  <summary><b>Discord Level 99</b></summary>
+
+- **Enable level announcements** - *(default: yes)*
+- **Include screenshot** - *(default: yes)*
+- **Chat privacy** - *(default: Hide all)*
+
+</details>
+
+<details>
+  <summary><b>Discord Maxed Level</b></summary>
+
+- **Enable maxed announcements** - *(default: yes)*
+- **Include screenshot** - *(default: yes)*
+- **Chat privacy** - *(default: Hide all)*
+
+</details>
+
+<details>
+  <summary><b>Discord 200M XP</b></summary>
+
+- **Enable 200M XP announcements** - *(default: yes)*
+- **Include screenshot** - *(default: yes)*
+- **Chat privacy** - *(default: Hide all)*
+
+</details>
+
+<details>
+  <summary><b>Discord Grandmaster Quests</b></summary>
+
+- **Enable GM Quest announcements** - *(default: yes)*
+- **Include screenshot** - *(default: yes)*
+- **Chat privacy** - *(default: Hide all)*
+- **Include total quest points** - *(default: yes)*
+
+</details>
+
+<details>
+  <summary><b>Discord Elite Diaries</b></summary>
+
+- **Enable Elite Diary announcements** - *(default: yes)*
+- **Include screenshot** - *(default: yes)*
+- **Chat privacy** - *(default: Hide all)*
+
+</details>
+
+<details>
+  <summary><b>Discord Combat Achievements</b></summary>
+
+- **Enable CA rewards announcements** - *(default: yes)*
+- **Include screenshot** - *(default: yes)*
+- **Chat privacy** - *(default: Hide all)*
+
+</details>
+
+<details>
+  <summary><b>Discord Collection Logs</b></summary>
+
+- **Enable clog announcements** - *(default: yes)*
+- **Include screenshot** - *(default: yes)*
+- **Chat privacy** - *(default: Hide all)*
+- **Include total clogs** - *(default: yes)*
+
+</details>
+
+<details>
+  <summary><b>Discord Pets</b></summary>
+
+- **Enable pet announcements** - *(default: yes)*
+- **Include screenshot** - *(default: yes)*
+- **Chat privacy** - *(default: Hide all)*
+
+</details>
+
+<details>
+  <summary><b>Discord Death</b></summary>
+
+- **Enable death announcements** - *(default: yes)*
+- **Include screenshot** - *(default: yes)*
+- **Chat privacy** - *(default: Hide all)*
+- **Include combat and total level** - *(default: yes)*
+
+</details>
+
+<details>
+  <summary><b>Leaderboards</b></summary>
+
+- **Display Virtual Levels** - *(default: yes)*
+
+</details>
