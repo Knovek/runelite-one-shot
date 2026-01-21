@@ -81,7 +81,7 @@ public class OneShotPlugin extends Plugin
     @Inject
     private ConfigManager configManager;
 
-    private static final String CURRENT_VERSION = "v1.1.0"; // bump when releasing
+    private static final String CURRENT_VERSION = "v1.2.0"; // bump when releasing
 
     private boolean isMember = false;
     private boolean isModerator = false;
@@ -93,10 +93,6 @@ public class OneShotPlugin extends Plugin
     private CompletableFuture<Image> pendingDeathScreenshot = null;
     private String pendingDeathKiller = null;
     private boolean deathAwaitingVarbit = false;
-    private CompletableFuture<Image> pendingScreenshot;
-    private boolean hideChatForScreenshot;
-    private boolean hideSplitChatForScreenshot;
-    private int screenshotDelayTicks;
 
     private volatile boolean levelsInitialized = false;
     private volatile boolean diariesInitialized = false;
@@ -354,9 +350,14 @@ public class OneShotPlugin extends Plugin
 
         log.debug("HCIM death varbit triggered!");
 
-        if (pendingDeathScreenshot != null && config.announcedeaths())
+        if (config.announceDeaths() && discordAnnouncementsEnabled() && isMember)
         {
-            pendingDeathScreenshot.thenAccept(img -> {
+            CompletableFuture<Image> screenshotFuture =
+                    (config.announceDeathsScreenshot() && pendingDeathScreenshot != null)
+                            ? pendingDeathScreenshot
+                            : CompletableFuture.completedFuture(null);
+
+            screenshotFuture.thenAccept(img -> {
                 try
                 {
                     discordClient.sendDeath(
@@ -397,7 +398,7 @@ public class OneShotPlugin extends Plugin
                 DiaryImages.getDiaryInfo(varbitId).getTier()
         );
 
-        if (!config.announceelites())
+        if (!config.announceDiaries() || !discordAnnouncementsEnabled() || !isMember)
             return;
 
         if (isDiaryComplete(varbitId, newValue))
@@ -427,7 +428,8 @@ public class OneShotPlugin extends Plugin
     @Subscribe
     public void onActorDeath(ActorDeath actorDeath)
     {
-        if (!isMember) return;
+        if (!isMember && !config.announceDeaths()) return;
+        if (!discordAnnouncementsEnabled()) return;
 
         Actor actor = actorDeath.getActor();
 
@@ -444,37 +446,12 @@ public class OneShotPlugin extends Plugin
         pendingDeathKiller = (killer != null) ? killer.getName() : "";
 
         // Capture screenshot now
-        pendingDeathScreenshot = getScreenshot(0);
+        pendingDeathScreenshot = discordClient.getScreenshot(0, config.announceDeathsChatPrivacy());
 
         // Signal that a death has occurred
         deathAwaitingVarbit = true;
 
         log.debug("Player death recorded; waiting for HCIM varbit.");
-    }
-
-    public CompletableFuture<Image> getScreenshot(int delayTicks)
-    {
-        CompletableFuture<Image> future = new CompletableFuture<>();
-        boolean privacyMode = config.hidechats();
-
-        clientThread.invoke(() ->
-        {
-            hideChatForScreenshot = hideWidget(
-                    privacyMode,
-                    client,
-                    InterfaceID.Chatbox.CHATAREA
-            );
-            hideSplitChatForScreenshot = hideWidget(
-                    privacyMode,
-                    client,
-                    InterfaceID.PmChat.CONTAINER
-            );
-
-            pendingScreenshot = future;
-            screenshotDelayTicks = delayTicks;
-        });
-
-        return future;
     }
 
     public static boolean hideWidget(boolean shouldHide, Client client, @net.runelite.api.annotations.Component int info) {
@@ -503,9 +480,9 @@ public class OneShotPlugin extends Plugin
 
     @Subscribe
     public void onWidgetLoaded(WidgetLoaded event) throws IOException {
-        if (!isMember) return;
+        if (!isMember || !discordAnnouncementsEnabled()) return;
         // quest
-        if (event.getGroupId() == InterfaceID.QUESTSCROLL && config.announcegmquests()) {
+        if (event.getGroupId() == InterfaceID.QUESTSCROLL && config.announceQuests()) {
             Widget quest = client.getWidget(InterfaceID.Questscroll.QUEST_TITLE);
             if (quest != null) {
                 String questText = quest.getText();
@@ -520,8 +497,7 @@ public class OneShotPlugin extends Plugin
     @Subscribe
     public void onChatMessage(ChatMessage event) throws IOException {
         if (!isMember) return;
-
-        if (client.getWorldType().contains(WorldType.SEASONAL)) return;
+        if (!discordAnnouncementsEnabled()) return;
         if ((event.getType() != ChatMessageType.GAMEMESSAGE && event.getType() != ChatMessageType.SPAM)) return;
 
         String inputMessage = event.getMessage();
@@ -535,14 +511,28 @@ public class OneShotPlugin extends Plugin
         {
             item = outputMessage.substring(COLLECTION_LOG_TEXT.length());
             boolean isPet = Constants.Pets.contains(item);
-            if (isPet && config.announcepets()) discordClient.sendPet(item);
-            if (!isPet && config.announceloot()) discordClient.sendLootDrop(item);
+            if (isPet && config.announcePets())  discordClient.sendPet(item);
+            if (!isPet && config.announceCollectionLogs()) discordClient.sendLootDrop(item);
         }
 
-        if (isCombatAchievement && config.announcecas())
+        if (isCombatAchievement && config.announceCombatAchievements())
             discordClient.sendCombatAchievement(parseCombatTier(outputMessage));
 
     }
+
+    private boolean isInSpecialWorld()
+    {
+        final Set<WorldType> types = client.getWorldType();
+        if (types == null || types.isEmpty()) { return false; }
+
+        for (WorldType t : types)
+        {
+            if (SPECIAL_WORLDS.contains(t)) { return true; }
+        }
+        return false;
+    }
+
+    private boolean discordAnnouncementsEnabled() { return !isInSpecialWorld(); }
 
     @Nullable
     public static String parseCombatTier(String message)
@@ -557,7 +547,7 @@ public class OneShotPlugin extends Plugin
 
     @Subscribe
     public void onStatChanged(StatChanged statChange) throws IOException {
-        if (!isMember) return;
+        if (!isMember || !discordAnnouncementsEnabled()) return;
         handleLevelUp(statChange.getSkill(), statChange.getLevel(), statChange.getXp());
     }
 
@@ -571,7 +561,6 @@ public class OneShotPlugin extends Plugin
         discordClient.onGameTick();
 
         handleLoginInitialization();
-        handlePendingScreenshot();
     }
 
     private void updateRankAndPanel() throws IOException, InterruptedException
@@ -629,40 +618,6 @@ public class OneShotPlugin extends Plugin
         }
     }
 
-    private void handlePendingScreenshot()
-    {
-        if (pendingScreenshot == null)
-            return;
-
-        if (screenshotDelayTicks-- > 0)
-            return;
-
-        drawManager.requestNextFrameListener(image ->
-        {
-            pendingScreenshot.complete(image);
-
-            clientThread.invoke(() ->
-                    unhideWidget(
-                            hideChatForScreenshot,
-                            client,
-                            clientThread,
-                            InterfaceID.Chatbox.CHATAREA
-                    )
-            );
-
-            clientThread.invoke(() ->
-                    unhideWidget(
-                            hideSplitChatForScreenshot,
-                            client,
-                            clientThread,
-                            InterfaceID.PmChat.CONTAINER
-                    )
-            );
-
-            pendingScreenshot = null;
-        });
-    }
-
     private void initCollectionLogs() {
         int collectionlogs = client.getVarpValue(VarPlayerID.COLLECTION_COUNT);
 //        log.debug(String.format("initCollectionLogs: %d",collectionlogs));
@@ -671,7 +626,6 @@ public class OneShotPlugin extends Plugin
     @Subscribe
     public void onGameStateChanged(GameStateChanged gameStateChanged)
     {
-//        log.debug(String.format("GameStateChanged: %s", gameStateChanged.getGameState()));
         if (gameStateChanged.getGameState() == GameState.LOADING) return;
         if (gameStateChanged.getGameState() == GameState.LOGIN_SCREEN) {
             this.resetLevels();
@@ -784,7 +738,7 @@ public class OneShotPlugin extends Plugin
             return;
         }
 
-        if (xp <= 0 || level <= 1 || !config.announceLevel()) return;
+        if (xp <= 0 || level <= 1) return;
 
         if (!levelsInitialized) {
             // optionally track ticks to force init later, but do not process level-ups
@@ -815,21 +769,23 @@ public class OneShotPlugin extends Plugin
 
         int totalLevel = client.getTotalLevel();
 
-        // Check normal skill level up
-        if (virtualLevel > previousLevel && totalLevel == Constants.MAX_TOTAL_LEVEL)
-        {
-            discordClient.sendLevelMaxed(totalLevel);
-        } else if (virtualLevel > previousLevel) {
-            discordClient.sendLevelUp(skill, virtualLevel);
+        // Check normal skill level up for only 99 and maxed
+        if (virtualLevel > previousLevel && virtualLevel <= MAX_REAL_LEVEL) {
+            if (totalLevel == Constants.MAX_TOTAL_LEVEL && config.announceMaxed()) {
+                discordClient.sendLevelMaxed(totalLevel);
+            }
+            else if (config.announceLevel()) {
+                discordClient.sendLevelUp(skill, virtualLevel);
+            }
         }
 
-
-        // Check if xp milestone reached
-        if (level >= MAX_REAL_LEVEL && xp > previousXp) {
-
-            if (xp >= Experience.MAX_SKILL_XP) {
-                discordClient.send200(skill);
-            }
+        // 200M XP announcement (independent of level-up)
+        if (level >= MAX_REAL_LEVEL
+                && xp > previousXp
+                && xp >= Experience.MAX_SKILL_XP
+                && config.announce200M())
+        {
+            discordClient.sendXP200(skill);
         }
     }
 
