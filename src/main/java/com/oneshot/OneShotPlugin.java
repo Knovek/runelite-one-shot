@@ -890,6 +890,7 @@ public class OneShotPlugin extends Plugin
                 return "Trial Moderator";
 
             case "Witch":
+            case "Seer":
                 return "Event Team";
 
             default:
