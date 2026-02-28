@@ -241,7 +241,8 @@ public class Constants {
             "Phoenix",
             "Yami",
             "Smolcano",
-            "Pet snakeling"
+            "Pet snakeling",
+            "Beef"
     );
 
     // Items whitelisting and blacklisting
