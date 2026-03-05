@@ -776,69 +776,75 @@ public class OneShotPanel extends PluginPanel
         worker.execute();
     }
 
-    private ButtonUpdate computeButtonInfo(HiscoreSkill skill, JsonElement metricLeaders) {
+    private static @Nullable JsonObject getObj(JsonObject parent, String key)
+    {
+        if (parent == null) return null;
+        JsonElement el = parent.get(key);
+        return (el != null && el.isJsonObject()) ? el.getAsJsonObject() : null;
+    }
+
+    private static String keys(JsonObject o)
+    {
+        return o == null ? "null" : o.keySet().toString();
+    }
+
+    private ButtonUpdate computeButtonInfo(HiscoreSkill skill, JsonElement metricLeadersEl)
+    {
+        JsonObject metricLeaders = metricLeadersEl.getAsJsonObject();
 
         String name = normalizeSkillName(skill);
         String element;
         String id;
-        JsonElement metric;
 
         if (SKILLS.contains(skill) || name.equals("overall")) {
             element = "skills";
             id = "experience";
-            metric = metricLeaders.getAsJsonObject().get(element)
-                    .getAsJsonObject().get(name);
+        } else if (BOSSES.contains(skill)) {
+            element = "bosses";
+            id = "kills";
+        } else if (ACTIVITIES.contains(skill)) {
+            element = "activities";
+            id = "score";
+        } else {
+            return new ButtonUpdate(Color.RED, "?", "Unknown");
+        }
 
-            Color col = metric.getAsJsonObject()
-                    .get("player").getAsJsonObject()
-                    .get("displayName").getAsString().equals(playerName)
-                    ? Color.GREEN : Color.WHITE;
+        JsonObject bucket = getObj(metricLeaders, element);
+        if (bucket == null) {
+            log.warn("metricLeaders missing bucket '{}'. topKeys={}", element, keys(metricLeaders));
+            return new ButtonUpdate(Color.RED, "?", "Missing bucket");
+        }
+
+        JsonObject metric = getObj(bucket, name);
+        if (metric == null) {
+            log.warn("Missing metric '{}.{}'. availableKeys={}", element, name, keys(bucket));
+            return new ButtonUpdate(Color.RED, "?",
+                    "Missing metric");
+        }
+
+        JsonObject player = getObj(metric, "player");
+        String displayName = player != null && player.has("displayName") ? player.get("displayName").getAsString() : "";
+
+        if (element.equals("skills")) {
+            Color col = displayName.equals(playerName) ? Color.GREEN : Color.WHITE;
 
             String text = name.equals("overall")
-                    ? metric.getAsJsonObject().get("level").getAsString()
-                    : String.valueOf(Experience.getLevelForXp(
-                    metric.getAsJsonObject().get(id).getAsInt()));
+                    ? metric.get("level").getAsString()
+                    : String.valueOf(Experience.getLevelForXp(metric.get(id).getAsInt()));
 
             return new ButtonUpdate(col, text, detailsHtml(skill, metric));
         }
 
-        else if (BOSSES.contains(skill)) {
-            element = "bosses";
-            id = "kills";
-            metric = metricLeaders.getAsJsonObject().get(element)
-                    .getAsJsonObject().get(name);
-
-            double kills = metric.getAsJsonObject().get(id).getAsDouble();
-            Color col = kills == 0 ? Color.RED :
-                    metric.getAsJsonObject().get("player")
-                            .getAsJsonObject().get("displayName")
-                            .getAsString().equals(playerName)
-                            ? Color.GREEN : Color.WHITE;
-
-            return new ButtonUpdate(col, metric.getAsJsonObject().get(id).getAsString(),
-                    detailsHtml(skill, metric));
+        if (element.equals("bosses")) {
+            double kills = metric.get(id).getAsDouble();
+            Color col = kills == 0 ? Color.RED : (displayName.equals(playerName) ? Color.GREEN : Color.WHITE);
+            return new ButtonUpdate(col, metric.get(id).getAsString(), detailsHtml(skill, metric));
         }
 
-        else if (ACTIVITIES.contains(skill)) {
-            element = "activities";
-            id = "score";
-            metric = metricLeaders.getAsJsonObject().get(element)
-                    .getAsJsonObject().get(name);
-
-            double score = metric.getAsJsonObject().get(id).getAsDouble();
-            Color col = score == 0 ? Color.RED :
-                    metric.getAsJsonObject().get("player")
-                            .getAsJsonObject().get("displayName")
-                            .getAsString().equals(playerName)
-                            ? Color.GREEN : Color.WHITE;
-
-            return new ButtonUpdate(col,
-                    metric.getAsJsonObject().get(id).getAsString(),
-                    detailsHtml(skill, metric));
-        }
-
-        // fallback
-        return new ButtonUpdate(Color.WHITE, "?", "Unknown");
+        // activities
+        double score = metric.get(id).getAsDouble();
+        Color col = score == 0 ? Color.RED : (displayName.equals(playerName) ? Color.GREEN : Color.WHITE);
+        return new ButtonUpdate(col, metric.get(id).getAsString(), detailsHtml(skill, metric));
     }
 
     private static class ButtonUpdate {
