@@ -74,7 +74,7 @@ public class Constants {
     //Bosses, ordered in the way they should be displayed in the panel.
     public static final List<HiscoreSkill> BOSSES = ImmutableList.of(
             ABYSSAL_SIRE, ALCHEMICAL_HYDRA, AMOXLIATL,
-            ARAXXOR, ARTIO, BARROWS_CHESTS,
+            ARAXXOR, ARTIO, BARROWS_CHESTS, BRUTUS,
             BRYOPHYTA, CALLISTO, CALVARION,
             CERBERUS, CHAMBERS_OF_XERIC, CHAMBERS_OF_XERIC_CHALLENGE_MODE,
             CHAOS_ELEMENTAL, CHAOS_FANATIC, COMMANDER_ZILYANA,
