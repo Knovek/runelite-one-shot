@@ -5,7 +5,6 @@ import com.oneshot.utils.Constants;
 import com.oneshot.utils.Icons;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
-import net.runelite.api.MenuAction;
 import net.runelite.api.Skill;
 import net.runelite.api.annotations.Component;
 import net.runelite.api.clan.ClanRank;
@@ -60,24 +59,9 @@ public class DiscordClient {
 
     private CompletableFuture<Image> pendingScreenshot;
     private Constants.chatPrivacy pendingChatPrivacy = Constants.chatPrivacy.ALL;
-    private Integer previousPrivateChatMode = null;
     private boolean chatHiddenForScreenshot;
     private boolean hideSplitChatForScreenshot;
     private int screenshotDelayTicks;
-
-    // Variables related to menu actions for setting private chat to all, friends only and off
-    // Necessary to hide private chat when screenshotting (if chat privacy configs are set to ChatPrivacy.PRIVATE
-    // If configs are set to ChatPrivacy.ALL, it hides the whole chatbox and does nothing if set to ChatPrivacy.NONE
-    private static final int PRIVATE_CHAT_P0 = -1;
-    private static final int PRIVATE_CHAT_P1 = 10616847;
-    private static final int PRIVATE_CHAT_ITEM_ID = -1;
-    private static final int PRIVATE_CHAT_ID_SHOW_NONE = 5;
-    private static final int PRIVATE_CHAT_ID_SHOW_FRIENDS = 4;
-    private static final int PRIVATE_CHAT_ID_SHOW_ALL  = 3;
-    private static final String PRIVATE_CHAT_OPT_SHOW_NONE = "<col=ffff00>Private:</col> Show none";
-    private static final String PRIVATE_CHAT_OPT_SHOW_FRIENDS  = "<col=ffff00>Private:</col> Show friends";
-    private static final String PRIVATE_CHAT_OPT_SHOW_ALL  = "<col=ffff00>Private:</col> Show all";
-    private static final String PRIVATE_CHAT_TARGET = "";
 
     private static final MediaType JSON_MEDIA = MediaType.get("application/json; charset=utf-8");
     private static final String WORKER_URL = Constants.WORKER_URL;
@@ -728,7 +712,6 @@ public class DiscordClient {
         clientThread.invoke(() ->
         {
             final Constants.chatPrivacy privacy = pendingChatPrivacy;
-            applyPrivateChatPrivacy(privacy);
 
             chatHiddenForScreenshot = hideWidget(
                     shouldHidePublicChat(privacy),
@@ -763,7 +746,6 @@ public class DiscordClient {
                             InterfaceID.PmChat.CONTAINER
                     );
 
-                    restorePrivateChatPrivacy();
                     pendingScreenshot = null;
                 });
             });
@@ -1016,82 +998,7 @@ public class DiscordClient {
 
     private boolean shouldHidePrivateChat(Constants.chatPrivacy privacy) {
         return privacy == Constants.chatPrivacy.ALL
-            || privacy == Constants.chatPrivacy.PRIVATE;
-    }
-
-    // gave up on trying to set VarbitID.CHAT_FILTER_PRIVATE to 0,1,2
-    // instead, I'm replicating the menu clicks done by the user
-    // it's ugly, but it works
-    //
-    // when the config is enabled, the chat will be set to private off
-    // to hide private chats before screenshotting, and then restoring the previous state
-    private void applyPrivateChatPrivacy(Constants.chatPrivacy privacy)
-    {
-        if (privacy != Constants.chatPrivacy.PRIVATE)
-            return;
-
-        int current = client.getVarbitValue(VarbitID.CHAT_FILTER_PRIVATE);
-        if (current != 2)
-        {
-            previousPrivateChatMode = current;
-            setPrivateChatNone();
-        }
-    }
-
-    private void restorePrivateChatPrivacy()
-    {
-        if (previousPrivateChatMode == null)
-            return;
-
-        if (previousPrivateChatMode == 0)
-        {
-            setPrivateChatAll();
-        }
-        else if (previousPrivateChatMode == 1)
-        {
-            setPrivateChatFriends();
-        }
-
-        previousPrivateChatMode = null;
-    }
-
-    private void setPrivateChatNone()
-    {
-        client.menuAction(
-                PRIVATE_CHAT_P0,
-                PRIVATE_CHAT_P1,
-                MenuAction.CC_OP,
-                PRIVATE_CHAT_ID_SHOW_NONE,
-                PRIVATE_CHAT_ITEM_ID,
-                PRIVATE_CHAT_OPT_SHOW_NONE,
-                PRIVATE_CHAT_TARGET
-        );
-    }
-
-    private void setPrivateChatFriends()
-    {
-        client.menuAction(
-                PRIVATE_CHAT_P0,
-                PRIVATE_CHAT_P1,
-                MenuAction.CC_OP,
-                PRIVATE_CHAT_ID_SHOW_FRIENDS,
-                PRIVATE_CHAT_ITEM_ID,
-                PRIVATE_CHAT_OPT_SHOW_FRIENDS,
-                PRIVATE_CHAT_TARGET
-        );
-    }
-
-    private void setPrivateChatAll()
-    {
-        client.menuAction(
-                PRIVATE_CHAT_P0,
-                PRIVATE_CHAT_P1,
-                MenuAction.CC_OP,
-                PRIVATE_CHAT_ID_SHOW_ALL,
-                PRIVATE_CHAT_ITEM_ID,
-                PRIVATE_CHAT_OPT_SHOW_ALL,
-                PRIVATE_CHAT_TARGET
-        );
+                || privacy == Constants.chatPrivacy.PRIVATE;
     }
 
 
