@@ -81,7 +81,7 @@ public class OneShotPlugin extends Plugin
     @Inject
     private ConfigManager configManager;
 
-    private static final String CURRENT_VERSION = "v1.2.2"; // bump when releasing
+    private static final String CURRENT_VERSION = "v1.3.0"; // bump when releasing
 
     private boolean isMember = false;
     private boolean isModerator = false;
