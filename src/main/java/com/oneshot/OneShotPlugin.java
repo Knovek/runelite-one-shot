@@ -238,7 +238,9 @@ public class OneShotPlugin extends Plugin
 
         if (!CURRENT_VERSION.equals(stored))
         {
-            sendGameMessage("One Shot updated to " + CURRENT_VERSION + "!");
+            sendGameMessage("Updated to " + CURRENT_VERSION + "!");
+            sendGameMessage("Private chat is not fully hidden anymore");
+            sendGameMessage("Only works if split chat enabled!");
 
             // Persist so it doesn't spam next login
             configManager.setConfiguration(OneShotConfig.GROUP, "version", CURRENT_VERSION);
