@@ -264,6 +264,8 @@ public class OneShotPlugin extends Plugin
 
     @Subscribe
     public void onClanChannelChanged(ClanChannelChanged clanChannelChanged) throws IOException, InterruptedException {
+        if (clanChannelChanged.isGuest()) return;
+
         ClanChannel channel = clanChannelChanged.getClanChannel();
 
         if (channel == null)
