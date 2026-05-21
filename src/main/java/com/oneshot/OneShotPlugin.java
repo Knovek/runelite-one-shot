@@ -289,17 +289,6 @@ public class OneShotPlugin extends Plugin
             return;
         }
 
-        // Guest of One Shot
-        if (clanChannelChanged.isGuest())
-        {
-            panel.changeIntroText1("You are currently a guest of One Shot");
-            panel.changeIntroText2("Become a member today!");
-
-            isMember = false;
-            isModerator = false;
-            return;
-        }
-
         // REAL MEMBER
         String playerName = client.getLocalPlayer().getName();
         ClanSettings settings = Objects.requireNonNull(client.getClanSettings());
