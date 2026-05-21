@@ -17,7 +17,7 @@ public interface OneShotConfig extends Config
             name = "version",
             description = "version",
             hidden = true)
-    default String version() {return "v1.3.0"; }
+    default String version() {return "v1.3.1"; }
 
     // --- Sections ---
     @ConfigSection(

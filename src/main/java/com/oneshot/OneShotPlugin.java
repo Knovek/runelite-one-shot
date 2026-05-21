@@ -81,7 +81,7 @@ public class OneShotPlugin extends Plugin
     @Inject
     private ConfigManager configManager;
 
-    private static final String CURRENT_VERSION = "v1.3.0"; // bump when releasing
+    private static final String CURRENT_VERSION = "v1.3.1"; // bump when releasing
 
     private boolean isMember = false;
     private boolean isModerator = false;
@@ -239,8 +239,7 @@ public class OneShotPlugin extends Plugin
         if (!CURRENT_VERSION.equals(stored))
         {
             sendGameMessage("Updated to " + CURRENT_VERSION + "!");
-            sendGameMessage("Private chat is not fully hidden anymore");
-            sendGameMessage("Only works if split chat enabled!");
+            sendGameMessage("Fixed bug with guest channels");
 
             // Persist so it doesn't spam next login
             configManager.setConfiguration(OneShotConfig.GROUP, "version", CURRENT_VERSION);
