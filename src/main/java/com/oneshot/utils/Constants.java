@@ -495,7 +495,8 @@ public class Constants {
             "Crystal tool seed",
             "Serpentine visage",
             "Magic fang",
-            "Tanzanite fang"
+            "Tanzanite fang",
+            "Crimson kisten"
     );
 
     // Combat Achievements
