@@ -219,7 +219,7 @@ public class OneShotPlugin extends Plugin
     private void sendGameMessage(String msg)
     {
         clientThread.invoke(() ->
-                client.addChatMessage(ChatMessageType.GAMEMESSAGE, "[One Shot]", msg, null)
+                client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "[One Shot] " + msg, null)
         );
     }
 
