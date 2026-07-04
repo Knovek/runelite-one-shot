@@ -538,7 +538,8 @@ public class Constants {
             "Dragon Slayer II",
             "Monkey Madness II",
             "Song of the Elves",
-            "While Guthix Sleeps");
+            "While Guthix Sleeps",
+            "The Blood Moon Rises");
 
     // --- Enums ---
     @Getter
