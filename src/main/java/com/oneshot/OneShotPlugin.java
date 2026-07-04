@@ -239,7 +239,7 @@ public class OneShotPlugin extends Plugin
         if (!CURRENT_VERSION.equals(stored))
         {
             sendGameMessage("Updated to " + CURRENT_VERSION + "!");
-            sendGameMessage("Fixed bug with guest channels");
+            sendGameMessage("Added new quest The Blood Moon Rises drops and unlocks");
 
             // Persist so it doesn't spam next login
             configManager.setConfiguration(OneShotConfig.GROUP, "version", CURRENT_VERSION);
