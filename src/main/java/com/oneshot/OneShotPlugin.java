@@ -81,7 +81,7 @@ public class OneShotPlugin extends Plugin
     @Inject
     private ConfigManager configManager;
 
-    private static final String CURRENT_VERSION = "v1.3.2"; // bump when releasing
+    private static final String CURRENT_VERSION = "v1.3.3"; // bump when releasing
 
     private boolean isMember = false;
     private boolean isModerator = false;
@@ -239,7 +239,7 @@ public class OneShotPlugin extends Plugin
         if (!CURRENT_VERSION.equals(stored))
         {
             sendGameMessage("Updated to " + CURRENT_VERSION + "!");
-            sendGameMessage("Added new quest The Blood Moon Rises drops and unlocks");
+            sendGameMessage("Added new location Wyrmscraig drops");
 
             // Persist so it doesn't spam next login
             configManager.setConfiguration(OneShotConfig.GROUP, "version", CURRENT_VERSION);

@@ -243,7 +243,9 @@ public class Constants {
             "Smolcano",
             "Pet snakeling",
             "Beef",
-            "Maggot marquess"
+            "Maggot marquess",
+            "Aggy",
+            "Mr mcGroot"
     );
 
     // Items whitelisting and blacklisting
@@ -497,7 +499,10 @@ public class Constants {
             "Serpentine visage",
             "Magic fang",
             "Tanzanite fang",
-            "Crimson kisten"
+            "Crimson kisten",
+            "Hallowfell",
+            "Jar of light",
+            "Jeweller's chisel"
     );
 
     // Combat Achievements
