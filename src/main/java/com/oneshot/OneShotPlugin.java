@@ -239,7 +239,7 @@ public class OneShotPlugin extends Plugin
         if (!CURRENT_VERSION.equals(stored))
         {
             sendGameMessage("Updated to " + CURRENT_VERSION + "!");
-            sendGameMessage("Added Mad Angel and Maggot King to leaderboards");
+            sendGameMessage("Added Maggot King to leaderboards");
 
             // Persist so it doesn't spam next login
             configManager.setConfiguration(OneShotConfig.GROUP, "version", CURRENT_VERSION);
