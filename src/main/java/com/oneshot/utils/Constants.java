@@ -501,8 +501,23 @@ public class Constants {
             "Tanzanite fang",
             "Crimson kisten",
             "Hallowfell",
+            "Jeweller's chisel",
+            "Jar of chemicals",
+            "Jar of darkness",
+            "Jar of decay",
+            "Jar of dirt",
+            "Jar of dreams",
+            "Jar of eyes",
+            "Jar of feathers",
             "Jar of light",
-            "Jeweller's chisel"
+            "Jar of miasma",
+            "Jar of sand",
+            "Jar of smoke",
+            "Jar of souls",
+            "Jar of spirits",
+            "Jar of stone",
+            "Jar of swamp",
+            "Jar of venom"
     );
 
     // Combat Achievements
