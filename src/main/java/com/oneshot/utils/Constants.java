@@ -219,7 +219,7 @@ public class Constants {
             "Sraracha",
             "Scorpia's offspring",
             "Scurry",
-            "Gull (pet)",
+            "Gull",
             "Soup",
             "Skotos",
             "Lil' creator",
