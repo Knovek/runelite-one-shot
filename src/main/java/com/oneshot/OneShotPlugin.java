@@ -81,7 +81,8 @@ public class OneShotPlugin extends Plugin
     @Inject
     private ConfigManager configManager;
 
-    private static final String CURRENT_VERSION = "v1.3.4"; // bump when releasing
+    private static final String CURRENT_VERSION = "v1.4.0"; // bump when releasing
+    private static final String UPDATE_MSG = "Added Mad Angel to leaderboards and Jars to clog list";
 
     private boolean isMember = false;
     private boolean isModerator = false;
@@ -239,7 +240,7 @@ public class OneShotPlugin extends Plugin
         if (!CURRENT_VERSION.equals(stored))
         {
             sendGameMessage("Updated to " + CURRENT_VERSION + "!");
-            sendGameMessage("Added Maggot King to leaderboards");
+            sendGameMessage(UPDATE_MSG);
 
             // Persist so it doesn't spam next login
             configManager.setConfiguration(OneShotConfig.GROUP, "version", CURRENT_VERSION);
