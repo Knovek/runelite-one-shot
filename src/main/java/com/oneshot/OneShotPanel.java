@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.swing.*;
@@ -120,6 +121,10 @@ public class OneShotPanel extends PluginPanel
     private static final Color ROW_A = new Color(26, 26, 26);
     private static final Color ROW_B = new Color(32, 32, 32);
 
+    private static final long TOP_CHART_REFRESH_MINUTES = 10;
+    private volatile JsonElement cachedMetricLeaders;
+    private final AtomicBoolean topChartsFetchInProgress = new AtomicBoolean(false);
+
     public void init(Client client, ClientThread clientThread, ModToolsPanel modToolsPanel, OneShotConfig config)
     {
         this.clientThread = clientThread;
@@ -129,12 +134,21 @@ public class OneShotPanel extends PluginPanel
         loadFonts();
         buildIntroPanel();
         rateLimitedHttpCache = new RateLimitedHttpCache(20, 5);
+        topChartsScheduler.scheduleWithFixedDelay(
+                this::fetchAndCacheTopCharts,
+                0,
+                TOP_CHART_REFRESH_MINUTES,
+                TimeUnit.MINUTES
+        );
     }
 
     public void deinit()
     {
         isInInfoPanel = false;
-        rateLimitedHttpCache.shutdown();
+
+        topChartsScheduler.shutdownNow();
+        if (rateLimitedHttpCache != null) rateLimitedHttpCache.shutdown();
+        cachedMetricLeaders = null;
     }
 
     private void update()
@@ -694,39 +708,52 @@ public class OneShotPanel extends PluginPanel
         return container;
     }
 
+    private void fetchAndCacheTopCharts()
+    {
+        // Prevent the scheduled refresh and panel-opening refresh from overlapping.
+        if (!topChartsFetchInProgress.compareAndSet(false, true)) return;
+
+        try {
+            String response = rateLimitedHttpCache.fetch(Constants.URI_WOM_LEADERS);
+            if (response == null) return;
+
+            JsonParser jsonParser = new JsonParser();
+            JsonElement root = jsonParser.parse(response);
+            JsonElement metricLeaders = root.getAsJsonObject()
+                    .get(Constants.URI_WOM_LEADERS_OBJECT);
+
+            if (metricLeaders == null || !metricLeaders.isJsonObject()) {
+                log.warn("Leaderboard response did not contain '{}'",
+                        Constants.URI_WOM_LEADERS_OBJECT);
+                return;
+            }
+
+            cachedMetricLeaders = metricLeaders;
+
+            // populateMetricLeadersAsync handles its Swing changes safely.
+            if (!skillButtons.isEmpty()) {
+                populateMetricLeadersAsync(metricLeaders);
+            }
+        }
+        catch (Exception e) {
+            log.error("Failed to refresh top charts", e);
+        }
+        finally {
+            topChartsFetchInProgress.set(false);
+        }
+    }
+
     private void fetchAndPopulateTopChartsAsync()
     {
-        SwingWorker<JsonElement, Void> worker = new SwingWorker<>()
-        {
-            @Override
-            protected JsonElement doInBackground() throws Exception
-            {
-                String response = rateLimitedHttpCache.fetch(Constants.URI_WOM_LEADERS);
-                if (response == null) return null;
+        JsonElement cached = cachedMetricLeaders;
 
-                JsonParser jsonParser = new JsonParser();
-                JsonElement jsonElement = jsonParser.parse(response);
-                return jsonElement.getAsJsonObject().get(Constants.URI_WOM_LEADERS_OBJECT);
-            }
+        if (cached != null) {
+            populateMetricLeadersAsync(cached);
+            return;
+        }
 
-            @Override
-            protected void done()
-            {
-                try
-                {
-                    JsonElement metricLeaders = get();
-                    if (metricLeaders == null) return;
-
-                    populateMetricLeadersAsync(metricLeaders);
-                }
-                catch (Exception e)
-                {
-                    log.error(e.getMessage());
-                }
-            }
-        };
-
-        worker.execute();
+        // No cached response yet. Trigger a background fetch.
+        topChartsScheduler.execute(this::fetchAndCacheTopCharts);
     }
 
     private void populateMetricLeadersAsync(JsonElement metricLeaders) {
@@ -2311,7 +2338,13 @@ public class OneShotPanel extends PluginPanel
         }
     }
 
-
+    private final ScheduledExecutorService topChartsScheduler =
+            Executors.newSingleThreadScheduledExecutor(r ->
+            {
+                Thread thread = new Thread(r, "oneshot-top-charts-refresh");
+                thread.setDaemon(true);
+                return thread;
+            });
 
     private static class PlayerRenderer extends DefaultTableCellRenderer {
         @Override
