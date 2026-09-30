@@ -466,7 +466,7 @@ public class DiscordClient {
         String title = "New collection log";
         String itemWikiUrl = getWikiUrl(itemName);
         int itemHAPrice = getHAPrice(itemName);
-        int itemPrice = getWikiPrice(itemName);
+        long itemPrice = getWikiPrice(itemName);
         String description = String.format("[%s](%s)",itemName,itemWikiUrl);
 
         //if (itemPrice < 5e6) return;
@@ -474,7 +474,7 @@ public class DiscordClient {
         List<DiscordField> fields;
 
         fields = new ArrayList<>();
-        if (itemPrice > 0) {
+        if (itemPrice > 0L) {
             fields.add(new DiscordField(
                     "GE price",
                     String.format("%s", QuantityFormatter.formatNumber(itemPrice)),
@@ -632,9 +632,9 @@ public class DiscordClient {
         return client.getItemDefinition(item.getId()).getHaPrice();
     }
 
-    private int getWikiPrice(String itemName) {
+    private long getWikiPrice(String itemName) {
         ItemPrice item = findItem(itemName);
-        if (item == null) return -1;
+        if (item == null) return -1L;
 
         return itemManager.getWikiPrice(item);
     }

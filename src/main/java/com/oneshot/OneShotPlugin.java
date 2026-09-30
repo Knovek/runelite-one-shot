@@ -81,8 +81,8 @@ public class OneShotPlugin extends Plugin
     @Inject
     private ConfigManager configManager;
 
-    private static final String CURRENT_VERSION = "v1.4.0"; // bump when releasing
-    private static final String UPDATE_MSG = "Added Mad Angel to leaderboards and Jars to clog list";
+    private static final String CURRENT_VERSION = "v1.4.1"; // bump when releasing
+    private static final String UPDATE_MSG = "Small fix for max cash update";
 
     private boolean isMember = false;
     private boolean isModerator = false;
