@@ -92,7 +92,7 @@ public class Constants {
             SPINDEL, TEMPOROSS, THE_GAUNTLET,
             THE_CORRUPTED_GAUNTLET, THE_HUEYCOATL, THE_LEVIATHAN,
             THE_ROYAL_TITANS, THE_WHISPERER, THEATRE_OF_BLOOD,
-            THEATRE_OF_BLOOD_HARD_MODE, THERMONUCLEAR_SMOKE_DEVIL, TOMBS_OF_AMASCUT,
+            THEATRE_OF_BLOOD_HARD_MODE, THE_FRACTURED_ARCHIVE, THERMONUCLEAR_SMOKE_DEVIL, TOMBS_OF_AMASCUT,
             TOMBS_OF_AMASCUT_EXPERT, TZKAL_ZUK, TZTOK_JAD,
             VARDORVIS, VENENATIS, VETION,
             VORKATH, WINTERTODT, YAMA,
@@ -246,7 +246,8 @@ public class Constants {
             "Beef",
             "Maggot marquess",
             "Aggy",
-            "Mr mcGroot"
+            "Mr mcGroot",
+            "Orion"
     );
 
     // Items whitelisting and blacklisting
@@ -518,7 +519,12 @@ public class Constants {
             "Jar of spirits",
             "Jar of stone",
             "Jar of swamp",
-            "Jar of venom"
+            "Jar of venom",
+            "Horn of Bran",
+            "Ascension crossbows",
+            "Obligator (uncharged)",
+            "Rondache",
+            "Zorya's tome (uncharged)"
     );
 
     // Combat Achievements
